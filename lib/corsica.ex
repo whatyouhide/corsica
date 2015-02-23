@@ -1,6 +1,125 @@
 defmodule Corsica do
   @moduledoc """
   Plug and DSL for handling CORS requests.
+
+  Corsica provides facilites for working with
+  [CORS](http://en.wikipedia.org/wiki/Cross-origin_resource_sharing) in
+  Plug-based applications.
+
+  Corsica can be used in two ways:
+
+    * as a generator for fine-tuned plugs
+    * as a stand-alone plug
+
+  ## Generator
+
+  The `Corsica` module can be used in any module in order to turn that module
+  into a plug that handles CORS request. This is useful if there are a lot of
+  different cases to handle (multiple origins, headers based on resources) since
+  it gives fine control over the behaviour of the generated plug.
+
+  A quick example may make this easier to understand:
+
+      defmodule MyApp.CORS do
+        use Corsica,
+          origins: "*",
+          max_age: 600,
+          allow_headers: ~w(X-My-Header)
+
+        resources ["/foo", "/bar"], allow_methods: ~w(PUT PATCH)
+
+        resources ["/users"],
+          allow_credentials: true,
+          allow_methods: ~w(HEAD GET POST PUT PATCH DELETE)
+      end
+
+  In the example above, the `MyApp.CORS` module becomes a valid plug since the
+  `Corsica` module is used. The `resources/2` macro is used in order to declare
+  resources (routes) for which the server should respond with CORS headers.
+  Options passed to `resources/2` are used to set the values of the CORS
+  headers (for more information on options, read the "Options" section); they
+  override the global options that can be passed to the `use` macro, which apply
+  to all declared resources.
+
+  Given the example above, the `MyApp.CORS` plug can be used as follows:
+
+      defmodule MyApp.Router do
+        use Plug.Router
+        plug MyApp.CORS
+        plug :match
+        plug :dispatch
+
+        match _ do
+          send_resp(conn, 200, "OK")
+        end
+      end
+
+  For more information on declaring single resources, have a look at the
+  `Corsica.DSL.resources/2` macro (which is imported when `Corsica` is used).
+
+  ## Plug
+
+  In its simplest form, Corsica can be used as a stand-alone plug too. This
+  prevents from fine-tuning the CORS header on a per-resource basis, but it
+  supports all other options supported by the plug generator and can be useful
+  for simple CORS needs.
+
+      defmodule MyApp.Endpoint do
+        plug Corsica,
+          origins: ["http://foo.com"],
+          max_age: 600,
+          allow_headers: ~w(X-Header),
+          allow_methods: ~w(GET POST),
+          expose_headers: ~w(Content-Type)
+
+        plug Plug.Session
+        plug :router
+      end
+
+  ## Options
+
+  The options that can be passed to the `use` macro, to `Corsica.DSL.resource/2`
+  and to the `Corsica` plug (along with their default values) are:
+
+    * `:origins` - is a single value or a list of values. It specifies which
+      origins are accepted. Origins can be specified either as strings or as
+      regexes. The default value is `"*"`.
+    * `:allow_headers` - is a list of headers. Sets the value of the
+      `access-control-allow-headers` header used with preflight requests.
+      Defaults to `[]` (no headers are allowed).
+    * `:allow_methods` - is a list of HTTP methods (as binaries). Sets the value
+      of the `access-control-allow-methods` header used with preflight requests.
+      Defaults to `[]` (no methods are allowed).
+    * `:allow_credentials` - is a boolean. If true, sends the
+      `access-control-allow-credentials` with value `true`. If `false`, prevents
+      that header from being sent at all. Defaults to `false`.
+    * `:expose_headers` - is a list of headers (as binaries). Sets the value of
+      the `access-control-expose-headers` response header. This option doesn't
+      have a default value; if it's not provided, the
+      `access-control-expose-headers` header is not sent at all.
+    * `:max_age` - is an integer or a binary. Sets the value of the
+      `access-control-max-age` header used with preflight requests. This option
+      doesn't have a default value; if it's not provided, the
+      `access-control-max-age` header is not sent at all.
+
+  The `access-control-allow-origin` header has a particular behaviour since it's
+  dynamically set based on the value of the `Origin` request header. It works as
+  follows:
+
+    * if `:origins` is `"*"`, the value of the `access-control-allow-origin`
+      header is set to `*` regardless of the value of the `Origin` request
+      header;
+    * if the given `Origin` matches one of the origins given in `:origins`, than
+      the `access-control-allow-origin` header is set to the value of the
+      `Origin` request header (it "mirrors" it so that it doesn't reveal any
+      other allowed origin to the client);
+    * if the given `Origin` doesn't match any origins in `:origins`, then the
+      `access-control-allow-origin` header is set to the first origin in
+      `:origins`. This behaviour can be overridden through the `:allow_origin`
+      option, which specifies exactly what the value of
+      `access-control-allow-origin` should be in case the origin doesn't match
+      any allowed origin.
+
   """
 
   import Plug.Conn
@@ -10,8 +129,7 @@ defmodule Corsica do
   alias Corsica.Helpers
 
   @default_opts [
-    expose_headers: ~w(),
-    max_age: 1728000,
+    origins: "*",
     allow_headers: ~w(),
     allow_methods: ~w(),
     allow_credentials: false,
@@ -43,11 +161,7 @@ defmodule Corsica do
     Enum.any?(routes, &match?(^&1, path_info))
   end
 
-  @doc """
-  """
-  def cors_request?(conn),
-    do: Plug.Conn.get_req_header(conn, "origin") != []
-
+  @doc false
   def sanitize_opts(opts) do
     import String, only: [upcase: 1, downcase: 1]
     import Enum, only: [map: 2]
@@ -71,8 +185,35 @@ defmodule Corsica do
     end
   end
 
-  # Made public for testing.
-  @doc false
+  @doc """
+  Returns `true` if the given connection holds a CORS request, `false`
+  otherwise.
+
+  A request is considered a CORS request if and only if it has an `Origin`
+  header.
+
+  ## Examples
+
+      cors_request?(conn)
+
+  """
+  @spec cors_request?(Plug.Conn.t) :: boolean
+  def cors_request?(conn),
+    do: Plug.Conn.get_req_header(conn, "origin") != []
+
+  @doc """
+  Returns `true` if the given connection holds a preflight request, `false`
+  otherwise.
+
+  A request is considered to be a preflight request if it's an `OPTIONS` request
+  and has an `Access-Control-Request-Method` header.
+
+  ## Examples
+
+      preflight_request?(conn)
+
+  """
+  @spec preflight_request?(Plug.Conn.t) :: boolean
   def preflight_request?(%Conn{method: "OPTIONS"} = conn),
     do: get_req_header(conn, "access-control-request-method") != []
   def preflight_request?(%Conn{}),
