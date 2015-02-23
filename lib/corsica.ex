@@ -232,6 +232,11 @@ defmodule Corsica do
     origin          = conn |> get_req_header("origin") |> hd
 
     header = allow_origin_header(allowed_origins, origin, opts[:allow_origin])
+
+    if header != "*" do
+      conn = add_origin_to_vary_header(conn)
+    end
+
     put_resp_header(conn, "access-control-allow-origin", header)
   end
 
@@ -250,6 +255,16 @@ defmodule Corsica do
     do: false
   defp matching_origin?(allowed, origin),
     do: Regex.match?(allowed, origin)
+
+  defp add_origin_to_vary_header(conn) do
+    existing = (get_resp_header(conn, "vary") |> List.first) || ""
+    existing = Plug.Conn.Utils.list(existing)
+    if existing && not "origin" in existing do
+      put_resp_header(conn, "vary", Enum.join(["origin"|existing], ", "))
+    else
+      put_resp_header(conn, "vary", "origin")
+    end
+  end
 
   defp put_allow_credentials_header(conn, opts) do
     if opts[:allow_credentials] do

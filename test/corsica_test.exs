@@ -153,6 +153,16 @@ defmodule CorsicaTest do
     assert resp_header(conn, "access-control-allow-origin") == "custom-origin.com"
   end
 
+  test "Vary header when the origin isn't *" do
+    conn = ac_conn(:get, "/only-some-origins", [{"origin", "a.b"}]) |> Options.call([])
+    assert resp_header(conn, "vary") == "origin"
+
+    conn = ac_conn(:get, "/only-some-origins", [{"origin", "a.b"}])
+            |> put_resp_header("vary", "host")
+            |> Options.call([])
+    assert resp_header(conn, "vary") == "origin, host"
+  end
+
   test "credentials" do
     conn = ac_conn(:get, "/credentials", [{"origin", "foo.com"}]) |> Options.call([])
     assert resp_header(conn, "access-control-allow-origin") == "*"
