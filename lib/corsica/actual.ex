@@ -1,4 +1,6 @@
 defmodule Corsica.Actual do
+  @moduledoc false
+
   import Plug.Conn
 
   def handle_req(conn, opts) do

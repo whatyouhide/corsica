@@ -39,6 +39,16 @@ defmodule CorsicaTest do
     end
   end
 
+  test "cors_request?/1" do
+    import Corsica, only: [cors_request?: 1]
+
+    conn = ac_conn(:get, "/", [])
+    refute cors_request?(conn)
+
+    conn = ac_conn(:get, "/", [{"origin", "foo"}])
+    assert cors_request?(conn)
+  end
+
   test "preflight_request?/1" do
     import Corsica, only: [preflight_request?: 1]
     headers = [{"origin", "http://foo.bar.com"}]

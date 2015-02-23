@@ -1,4 +1,6 @@
 defmodule Corsica.Preflight do
+  @moduledoc false
+
   import Plug.Conn
 
   def handle_req(conn, opts) do
