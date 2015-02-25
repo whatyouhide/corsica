@@ -15,7 +15,7 @@ defmodule Corsica.Mixfile do
   defp deps do
     [
       {:cowboy, "~> 1.0", optional: true},
-      {:plug, "~> 0.10", optional: true},
+      {:plug, ">= 0.9.0", optional: true},
       {:earmark, "~> 0.1", only: :docs},
       {:ex_doc, "~> 0.7", only: :docs}
     ]
