@@ -166,6 +166,7 @@ defmodule Corsica do
     end
   end
 
+  @spec matching_route?([String.t], [String.t]) :: boolean
   defp matching_route?(path_info, routes) do
     compiled = Enum.map(routes, &Helpers.compile_route/1)
 
@@ -178,6 +179,7 @@ defmodule Corsica do
 
 
   @doc false
+  @spec sanitize_opts([Keyword.t]) :: [Keyword.t]
   def sanitize_opts(opts) do
     import String, only: [upcase: 1, downcase: 1]
     import Enum, only: [map: 2]
@@ -188,6 +190,7 @@ defmodule Corsica do
     |> validate_credentials_with_wildcard_origin!
   end
 
+  @spec validate_credentials_with_wildcard_origin!([Keyword.t]) :: [Keyword.t]
   defp validate_credentials_with_wildcard_origin!(opts) do
     if Keyword.fetch!(opts, :origins) == "*" and Keyword.fetch!(opts, :allow_credentials) do
       raise ArgumentError, "credentials can't be allowed when the allowed origins are *"
@@ -248,12 +251,14 @@ defmodule Corsica do
 
 
   @doc false
+  @spec put_common_headers(Plug.Conn.t, [Keyword.t]) :: Plug.Conn.t
   def put_common_headers(conn, opts) do
     conn
     |> put_allow_origin_header(opts)
     |> put_allow_credentials_header(opts)
   end
 
+  @spec put_allow_origin_header(Plug.Conn.t, [Keyword.t]) :: Plug.Conn.t
   defp put_allow_origin_header(conn, opts) do
     allowed_origins = Keyword.fetch!(opts, :origins)
     origin          = conn |> get_req_header("origin") |> hd
@@ -267,6 +272,9 @@ defmodule Corsica do
     put_resp_header(conn, "access-control-allow-origin", header)
   end
 
+  @spec allow_origin_header(String.t | [String.t | Regex.t],
+                            String.t,
+                            String.t | nil) :: String.t
   defp allow_origin_header("*", _origin, _custom), do: "*"
   defp allow_origin_header(allowed_origins, origin, custom) do
     if Enum.find(List.wrap(allowed_origins), &matching_origin?(&1, origin)) do
@@ -276,6 +284,7 @@ defmodule Corsica do
     end
   end
 
+  @spec matching_origin?(String.t | Regex.t, String.t) :: boolean
   defp matching_origin?(origin, origin),
     do: true
   defp matching_origin?(allowed, _origin) when is_binary(allowed),
@@ -283,6 +292,7 @@ defmodule Corsica do
   defp matching_origin?(allowed, origin),
     do: Regex.match?(allowed, origin)
 
+  @spec add_origin_to_vary_header(Plug.Conn.t) :: Plug.Conn.t
   defp add_origin_to_vary_header(conn) do
     existing = (get_resp_header(conn, "vary") |> List.first) || ""
     existing = Plug.Conn.Utils.list(existing)
@@ -293,6 +303,7 @@ defmodule Corsica do
     end
   end
 
+  @spec put_allow_credentials_header(Plug.Conn.t, [Keyword.t]) :: Plug.Conn.t
   defp put_allow_credentials_header(conn, opts) do
     if opts[:allow_credentials] do
       put_resp_header(conn, "access-control-allow-credentials", "true")
