@@ -42,6 +42,7 @@ defmodule Corsica.Preflight do
     |> put_allow_headers_header(opts)
     |> put_max_age_header(opts)
     |> Corsica.put_common_headers(opts)
+    |> halt
     |> send_resp(200, "")
   end
 
