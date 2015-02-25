@@ -15,8 +15,7 @@ most fun thing in the world, are they?)*
 * Compiles CORS-enabled resources into functions based on pattern-matching in
     order to take advantage of the optimizations made by the VM (yay, double
     performance!)
-* Is compliant with the CORS spec description from [MDN][cors-mdn] and from
-    [html5rocks.com][cors-html5rocks].
+* Is compliant with the [CORS specification][cors-spec] defined by the W3C.
 
 ## Usage
 
@@ -68,8 +67,9 @@ Corsica, refer to the [online documentation][docs].
 
 ## Contributing
 
-If you find a bug or something unclear (including in the documentation!), open
-an issue on GitHub.
+If you find a bug, something unclear (including in the documentation!) or a
+behaviour that is not compliant with the latest revision of the
+[official CORS specification][cors-spec], please open an issue on GitHub.
 
 If you want to contribute to code or documentation, fork the repository and then
 open a Pull Request
@@ -91,5 +91,4 @@ MIT &copy; 2015 Andrea Leopardi, see the [license file](LICENSE.txt).
 [image]: http://i.imgur.com/n2DZpEU.jpg
 [docs]: https://hexdocs.pm/corsica
 [cors-wiki]: http://en.wikipedia.org/wiki/Cross-origin_resource_sharing
-[cors-mdn]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS
-[cors-html5rocks]: http://www.html5rocks.com/en/tutorials/cors
+[cors-spec]: http://www.w3.org/TR/cors
