@@ -132,6 +132,39 @@ defmodule Corsica do
 
   """
 
+  # Here are some nice (and apparently overlooked!) quotes from the W3C CORS
+  # specification.
+  #
+  # http://www.w3.org/TR/cors/#access-control-allow-credentials-response-header
+  # The syntax of the Access-Control-Allow-Credentials header only accepts the
+  # value "true" (without quotes, case-sensitive). Any other value is not
+  # conforming to the official CORS specification (many libraries tend to just
+  # shove the value of a boolean in that header, so it happens to have the value
+  # "false" as well).
+  #
+  # http://www.w3.org/TR/cors/#resource-requests, item 3.
+  # The string "*" cannot be used [as the value for the
+  # Access-Control-Allow-Origin] header for a resource that supports
+  # credentials.
+  #
+  # http://www.w3.org/TR/cors/#resource-preflight-requests, item 9.
+  # If method is a simple method, [setting the Access-Control-Allow-Methods
+  # header] may be skipped (but it is not prohibited).
+  # Simply returning the method indicated by Access-Control-Request-Method (if
+  # supported) can be enough.
+  #
+  # http://www.w3.org/TR/cors/#resource-preflight-requests, item 10.
+  # If each of the header field names is a simple header and none is
+  # Content-Type, [setting the Access-Control-Allow-Headers] may be
+  # skipped. Simply returning supported headers from
+  # Access-Control-Allow-Headers can be enough.
+  #
+  # http://www.w3.org/TR/cors/#resource-implementation
+  # [...] [authors] should send a Vary: Origin HTTP header or provide other
+  # appropriate control directives to prevent caching of such responses, which
+  # may be inaccurate if re-used across-origins.
+
+
   import Plug.Conn
   alias Corsica.Preflight
   alias Corsica.Actual
