@@ -125,6 +125,11 @@ defmodule Corsica do
       `access-control-allow-origin` should be in case the origin doesn't match
       any allowed origin.
 
+  When used as a plug, Corsica supports the additional `:resources` options,
+  which is a list of resources exactly like the ones passed to the
+  `Corsica.DSL.resources/2` macro. By default, this option is not present,
+  meaning that all resources are CORS-enabled.
+
   """
 
   import Plug.Conn
@@ -152,11 +157,12 @@ defmodule Corsica do
   def init(opts), do: sanitize_opts(opts)
 
   def call(%Plug.Conn{path_info: path_info} = conn, opts) do
-    {routes, opts} = Keyword.pop(opts, :resources, ["/*"])
-    if cors_request?(conn) and matching_route?(path_info, routes) do
-      handle_req(conn, opts)
-    else
-      conn
+    {routes, opts} = Keyword.pop(opts, :resources)
+    cond do
+      not cors_request?(conn)            -> conn
+      !routes                            -> handle_req(conn, opts)
+      matching_route?(path_info, routes) -> handle_req(conn, opts)
+      true                               -> conn
     end
   end
 
