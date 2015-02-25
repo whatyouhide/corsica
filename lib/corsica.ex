@@ -147,8 +147,7 @@ defmodule Corsica do
   @doc false
   defmacro __using__(opts) do
     quote do
-      opts = Corsica.sanitize_opts(unquote(opts))
-      use Corsica.DSL, opts
+      use Corsica.DSL, unquote(opts)
     end
   end
 
@@ -184,9 +183,15 @@ defmodule Corsica do
     import String, only: [upcase: 1, downcase: 1]
     import Enum, only: [map: 2]
 
+    wrap = fn
+      "*" -> "*"
+      val -> List.wrap(val)
+    end
+
     Keyword.merge(@default_opts, opts)
     |> Keyword.update!(:allow_methods, fn(m) -> map(m, &upcase/1) end)
     |> Keyword.update!(:allow_headers, fn(h) -> map(h, &downcase/1) end)
+    |> Keyword.update!(:origins, wrap)
     |> validate_credentials_with_wildcard_origin!
   end
 
@@ -265,7 +270,7 @@ defmodule Corsica do
 
     header = allow_origin_header(allowed_origins, origin, opts[:allow_origin])
 
-    if header != "*" do
+    if header != "*" and allowed_origins != "*" and length(allowed_origins) > 1 do
       conn = add_origin_to_vary_header(conn)
     end
 
@@ -277,7 +282,7 @@ defmodule Corsica do
                             String.t | nil) :: String.t
   defp allow_origin_header("*", _origin, _custom), do: "*"
   defp allow_origin_header(allowed_origins, origin, custom) do
-    if Enum.find(List.wrap(allowed_origins), &matching_origin?(&1, origin)) do
+    if Enum.find(allowed_origins, &matching_origin?(&1, origin)) do
       origin
     else
       custom || hd(allowed_origins)

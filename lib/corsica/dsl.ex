@@ -34,7 +34,7 @@ defmodule Corsica.DSL do
     single_resources = Enum.flat_map(resources, &split_routes/1)
 
     routes = for {route, opts} <- single_resources do
-      opts = Keyword.merge(global_opts, opts)
+      opts = Keyword.merge(global_opts, opts) |> Corsica.sanitize_opts
       compile_resource(route, opts)
     end
 

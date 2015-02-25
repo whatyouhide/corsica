@@ -4,20 +4,21 @@ defmodule CorsicaTest do
 
   defmodule Matching do
     use Corsica, origins: "*"
-    resources ["/foo", "/bar"], allow_credentials: false
-    resources ["/wildcard/*"], allow_credentials: true
+    resources ["/foo", "/bar"], expose_headers: ~w(foobar)
+    resources ["/wildcard/*"], expose_headers: ~w(wildcard)
   end
 
   defmodule Options do
     use Corsica, origins: "*"
     resources ["/all"]
     resources ["/only-some-origins"], origins: ["a.b", "b.a"]
+    resources ["/only-one-origin"], origins: ["a.b"]
     resources ["/regex"], origins: ~r/(foo|bar)\.com$/, allow_origin: "foo.com"
     resources ["/allow_origin"],
       origins: ["foo.bar"],
       allow_origin: "custom-origin.com"
 
-    resources ["/credentials"], allow_credentials: true
+    resources ["/credentials"], origins: "foo.com", allow_credentials: true
   end
 
   defmodule Preflight do
@@ -81,15 +82,15 @@ defmodule CorsicaTest do
   test "matches correctly" do
     conn = ac_conn(:get, "/bar", [{"origin", "foo.com"}]) |> Matching.call([])
     assert resp_header(conn, "access-control-allow-origin") == "*"
-    assert resp_header(conn, "access-control-allow-credentials") == nil
+    assert resp_header(conn, "access-control-expose-headers") == "foobar"
 
     conn = ac_conn(:get, "/wildcard/foobar", [{"origin", "bar.com"}]) |> Matching.call([])
     assert resp_header(conn, "access-control-allow-origin") == "*"
-    assert resp_header(conn, "access-control-allow-credentials") == "true"
+    assert resp_header(conn, "access-control-expose-headers") == "wildcard"
 
     # When a request doesn't match, no CORS headers are returned.
     conn = ac_conn(:get, "/cardwild/foo", [{"origin", "baz.com"}]) |> Matching.call([])
-    refute resp_header(conn, "access-control-allow-origin")
+    refute resp_header(conn, "access-control-expose-headers")
   end
 
   test "options can be passed to `use/2` and then overridden" do
@@ -173,11 +174,14 @@ defmodule CorsicaTest do
             |> put_resp_header("vary", "host")
             |> Options.call([])
     assert resp_header(conn, "vary") == "origin, host"
+
+    conn = ac_conn(:get, "/only-one-origin", [{"origin", "a.b"}]) |> Options.call([])
+    refute resp_header(conn, "vary")
   end
 
   test "credentials" do
     conn = ac_conn(:get, "/credentials", [{"origin", "foo.com"}]) |> Options.call([])
-    assert resp_header(conn, "access-control-allow-origin") == "*"
+    assert resp_header(conn, "access-control-allow-origin") == "foo.com"
     assert resp_header(conn, "access-control-allow-credentials") == "true"
   end
 
