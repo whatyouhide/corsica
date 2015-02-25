@@ -6,6 +6,9 @@ defmodule Corsica do
   [CORS](http://en.wikipedia.org/wiki/Cross-origin_resource_sharing) in
   Plug-based applications.
 
+  Corsica is (well, tries to be!) compliant with the [CORS specification defined
+  by the W3C](http://www.w3.org/TR/cors/#redirect-steps).
+
   Corsica can be used in two ways:
 
     * as a generator for fine-tuned plugs
@@ -90,9 +93,11 @@ defmodule Corsica do
     * `:allow_methods` - is a list of HTTP methods (as binaries). Sets the value
       of the `access-control-allow-methods` header used with preflight requests.
       Defaults to `[]` (no methods are allowed).
-    * `:allow_credentials` - is a boolean. If true, sends the
+    * `:allow_credentials` - is a boolean. If `true`, sends the
       `access-control-allow-credentials` with value `true`. If `false`, prevents
-      that header from being sent at all. Defaults to `false`.
+      that header from being sent at all. Defaults to `false`. Note that an
+      `ArgumentError` exception is raised in case the `:allow_credentials`
+      options is set to `true` *and* the `:origins` option is set to `"*"`.
     * `:expose_headers` - is a list of headers (as binaries). Sets the value of
       the `access-control-expose-headers` response header. This option doesn't
       have a default value; if it's not provided, the
@@ -123,7 +128,6 @@ defmodule Corsica do
   """
 
   import Plug.Conn
-  alias Plug.Conn
   alias Corsica.Preflight
   alias Corsica.Actual
   alias Corsica.Helpers
@@ -148,7 +152,7 @@ defmodule Corsica do
   def init(opts), do: sanitize_opts(opts)
 
   def call(%Plug.Conn{path_info: path_info} = conn, opts) do
-    {routes, opts} = Keyword.pop(opts, :resources, [])
+    {routes, opts} = Keyword.pop(opts, :resources, ["/*"])
     if cors_request?(conn) and matching_route?(path_info, routes) do
       handle_req(conn, opts)
     else
@@ -157,9 +161,15 @@ defmodule Corsica do
   end
 
   defp matching_route?(path_info, routes) do
-    routes = Enum.map(routes, &Helpers.compile_route/1)
-    Enum.any?(routes, &match?(^&1, path_info))
+    compiled = Enum.map(routes, &Helpers.compile_route/1)
+
+    Enum.any? compiled, fn(route) ->
+      Code.eval_quoted(quote do
+        match?(unquote(route), unquote(path_info))
+      end) |> elem(0)
+    end
   end
+
 
   @doc false
   def sanitize_opts(opts) do
@@ -169,6 +179,15 @@ defmodule Corsica do
     Keyword.merge(@default_opts, opts)
     |> Keyword.update!(:allow_methods, fn(m) -> map(m, &upcase/1) end)
     |> Keyword.update!(:allow_headers, fn(h) -> map(h, &downcase/1) end)
+    |> validate_credentials_with_wildcard_origin!
+  end
+
+  defp validate_credentials_with_wildcard_origin!(opts) do
+    if Keyword.fetch!(opts, :origins) == "*" and Keyword.fetch!(opts, :allow_credentials) do
+      raise ArgumentError, "credentials can't be allowed when the allowed origins are *"
+    else
+      opts
+    end
   end
 
 
@@ -178,6 +197,8 @@ defmodule Corsica do
   """
   @spec handle_req(Plug.Conn.t, [Keyword.t]) :: Plug.Conn.t
   def handle_req(conn, opts) do
+    require Logger
+    # Logger.debug "Corsica intercepted the request"
     if preflight_request?(conn) do
       Preflight.handle_req(conn, opts)
     else
@@ -214,9 +235,9 @@ defmodule Corsica do
 
   """
   @spec preflight_request?(Plug.Conn.t) :: boolean
-  def preflight_request?(%Conn{method: "OPTIONS"} = conn),
+  def preflight_request?(%Plug.Conn{method: "OPTIONS"} = conn),
     do: get_req_header(conn, "access-control-request-method") != []
-  def preflight_request?(%Conn{}),
+  def preflight_request?(%Plug.Conn{}),
     do: false
 
 

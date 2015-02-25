@@ -31,7 +31,9 @@ defmodule CorsicaTest do
 
   defmodule AsPlug do
     use Plug.Builder
-    plug Corsica, origins: ["foo.com"], resources: ["/foo"]
+    plug Corsica,
+      origins: ["foo.com"],
+      resources: ["/wildcard/*", "/foo"]
     plug :match
 
     def match(conn, _opts) do
@@ -64,6 +66,16 @@ defmodule CorsicaTest do
 
     conn = ac_conn(:options, "/", [{"access-control-request-method", "GET"}|headers])
     assert preflight_request?(conn)
+  end
+
+  test "sanitize_opts/1" do
+    msg = "credentials can't be allowed when the allowed origins are *"
+    assert_raise ArgumentError, msg, fn ->
+      Corsica.sanitize_opts(origins: "*", allow_credentials: true)
+    end
+
+    opts = Corsica.sanitize_opts(allow_methods: ~w(get PoSt))
+    assert opts[:allow_methods] == ~w(GET POST)
   end
 
   test "matches correctly" do
@@ -171,6 +183,11 @@ defmodule CorsicaTest do
 
   test "as a plug" do
     conn = ac_conn(:get, "/foo", [{"origin", "foo.com"}]) |> AsPlug.call([])
+    assert conn.status == 200
+    assert conn.resp_body == "match"
+    assert resp_header(conn, "access-control-allow-origin") == "foo.com"
+
+    conn = ac_conn(:get, "/wildcard/anything", [{"origin", "foo.com"}]) |> AsPlug.call([])
     assert conn.status == 200
     assert conn.resp_body == "match"
     assert resp_header(conn, "access-control-allow-origin") == "foo.com"
