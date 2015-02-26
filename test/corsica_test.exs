@@ -16,17 +16,13 @@ defmodule CorsicaTest do
 
     resources ["/regex"], origins: ~r/(foo|bar)\.com$/
     resources ["/function"], origins: &String.starts_with?(&1, "foo")
-
-    resources ["/allow_origin"],
-      origins: ["foo.bar"],
-      allow_origin: "custom-origin.com"
   end
 
   defmodule Preflight do
     use Corsica, origins: "*",
-                 allow_methods: ~w(PUT PATCH),
-                 allow_headers: ~w(X-Header X-Other-Header),
-                 max_age: 300
+      allow_methods: ~w(PUT PATCH),
+      allow_headers: ~w(X-Header X-Other-Header),
+      max_age: 300
 
     resources ["/*"]
   end
@@ -42,9 +38,7 @@ defmodule CorsicaTest do
     plug Corsica, origins: ["foo.com"], resources: ["/wildcard/*", "/foo"]
     plug :match
 
-    def match(conn, _opts) do
-      send_resp(conn, 200, "match")
-    end
+    def match(conn, _opts), do: send_resp(conn, 200, "match")
   end
 
   test "cors_request?/1" do

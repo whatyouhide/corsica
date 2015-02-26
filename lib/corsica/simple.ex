@@ -2,12 +2,9 @@ defmodule Corsica.Simple do
   @moduledoc false
 
   import Plug.Conn
-  import Corsica, only: [put_common_headers: 2]
 
-  def handle_req(conn, opts) do
-    conn
-    |> put_expose_headers_header(opts)
-    |> put_common_headers(opts)
+  def put_simple_headers(conn, opts) do
+    put_expose_headers_header(conn, opts)
   end
 
   defp put_expose_headers_header(conn, opts) do

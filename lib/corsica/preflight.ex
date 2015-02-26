@@ -2,24 +2,23 @@ defmodule Corsica.Preflight do
   @moduledoc false
 
   import Plug.Conn
-  import Corsica, only: [put_common_headers: 2]
 
-  def handle_req(conn, opts) do
-    if valid_cors_request?(conn, opts) do
-      send_preflight(conn, opts)
-    else
-      conn
-    end
+  def put_preflight_headers(conn, opts) do
+    conn
+    |> put_allow_methods_header(opts)
+    |> put_allow_headers_header(opts)
+    |> put_max_age_header(opts)
   end
 
-  defp valid_cors_request?(conn, opts) do
+  def valid?(conn, opts) do
     allowed_request_method?(conn, opts[:allow_methods]) and
       allowed_request_headers?(conn, opts[:allow_headers])
   end
 
   defp allowed_request_method?(conn, allowed_methods) do
     # We can safely assume there's an Access-Control-Request-Method header
-    # otherwise the request wouldn't have been identified as a preflight request.
+    # otherwise the request wouldn't have been identified as a preflight
+    # request.
     req_method = conn |> get_req_header("access-control-request-method") |> hd
     req_method in allowed_methods
   end
@@ -32,16 +31,6 @@ defmodule Corsica.Preflight do
     |> Enum.flat_map(&Plug.Conn.Utils.list/1)
     |> Enum.map(&String.downcase/1)
     |> Enum.all?(&(&1 in allowed_headers))
-  end
-
-  defp send_preflight(conn, opts) do
-    conn
-    |> put_allow_methods_header(opts)
-    |> put_allow_headers_header(opts)
-    |> put_max_age_header(opts)
-    |> put_common_headers(opts)
-    |> halt
-    |> send_resp(200, "")
   end
 
   defp put_allow_methods_header(conn, opts) do
