@@ -17,6 +17,21 @@ most fun thing in the world, are they?)*
     performance!)
 * Is compliant with the [CORS specification][cors-spec] defined by the W3C.
 
+## Installation
+
+Just add the `:corsica` dependency to your project's `mix.exs`:
+
+```elixir
+defp dependencies do
+  [{:plug, "~> 0.11"},
+   {:corsica, "~> 0.1"}]
+end
+```
+
+and then run `$ mix deps.get`. Corsica depends on [Plug][plug] too, but you have
+to explicitly list Plug as a dependency of your project (since the dependency is
+`optional: true` in Corsica).
+
 ## Usage
 
 The `Corsica` module can be used both as a stand-alone plug:
@@ -92,3 +107,4 @@ MIT &copy; 2015 Andrea Leopardi, see the [license file](LICENSE.txt).
 [docs]: https://hexdocs.pm/corsica
 [cors-wiki]: http://en.wikipedia.org/wiki/Cross-origin_resource_sharing
 [cors-spec]: http://www.w3.org/TR/cors
+[plug]: https://github.com/elixir-lang/plug
