@@ -37,8 +37,8 @@ defmodule Corsica.Mixfile do
 
   defp package do
     [
-      contributors: "Andrea Leopardi",
-      license: ["MIT"],
+      contributors: ["Andrea Leopardi"],
+      licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/whatyouhide/corsica"},
     ]
   end
