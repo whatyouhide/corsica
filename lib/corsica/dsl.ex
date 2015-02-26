@@ -1,4 +1,8 @@
 defmodule Corsica.DSL do
+  @moduledoc """
+  Provides a very simple and small DSL for defining CORS plugs.
+  """
+
   alias Corsica.Helpers
 
   @doc false
@@ -50,6 +54,34 @@ defmodule Corsica.DSL do
   end
 
   @doc """
+  Registers a list of CORS-enabled resources.
+
+  This macro registers a list of resources on which CORS is enabled. The
+  resources have to be strings, but `*` wildcards can be used (they will match
+  anything only if used **at the end of the resource**). This behaviour tries to
+  be very similar to the behaviour of
+  [`Plug.Router`](https://hexdocs.pm/plug/Plug.Router.html).
+
+  The special atom `:all` can be passed instead of a list; in this case,
+  everything matches.
+
+  The reason why only strings can be used (instead of regexes) is that routes
+  are compiled to function heads with pattern matching, which is very efficient
+  (that's why also Plug and Phoenix do this). This is also the reason why
+  wildcard matches can only appear at the end (they get converted to
+  `["any"|_]` matches).
+
+  ## Examples
+
+      # Will match only "/foo" or "/bar"
+      resources ["/foo", "/bar"]
+
+      # Will match "/any/thing" and "/any/thingy/thing" but not "/thing/any"
+      resources ["/any/*"]
+
+      # Will match everything
+      resources :all
+
   """
   defmacro resources(resources, opts \\ []) do
     quote do

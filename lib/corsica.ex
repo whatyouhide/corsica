@@ -4,10 +4,8 @@ defmodule Corsica do
 
   Corsica provides facilites for working with
   [CORS](http://en.wikipedia.org/wiki/Cross-origin_resource_sharing) in
-  Plug-based applications.
-
-  Corsica is (well, tries to be!) compliant with the [CORS specification defined
-  by the W3C](http://www.w3.org/TR/cors/#redirect-steps).
+  Plug-based applications. It is (well, tries to be!) compliant with the [CORS
+  specification defined by the W3C](http://www.w3.org/TR/cors/#redirect-steps).
 
   Corsica can be used in two ways:
 
@@ -79,17 +77,30 @@ defmodule Corsica do
         plug :router
       end
 
+  ## Origins
+
+  Allowed origins can be specified by passing the `:origins` options either when
+  `Corsica` is used or when the `Corsica` plug is plugged to a pipeline.
+
+  `:origins` can be a single value or a list of values. `"*"` can only appear as
+  a single value. The default value is `"*"`. Origins can be specified either as:
+
+    * strings - the allowed origin and the actual origin have to be identical
+    * regexes - the actual origin has to match the allowed regex functions with
+    * a type `(binary -> boolean)` - the function applied to the actual origin
+      has to return `true`
+
+  If `:origins` is a list with more than one value and the request origin matches,
+  then a `Vary: Origin` header is added to the response.
+
   ## Options
 
-  The options that can be passed to the `use` macro, to `Corsica.DSL.resource/2`
-  and to the `Corsica` plug (along with their default values) are:
+  Besides `:origins`, the options that can be passed to the `use` macro, to
+  `Corsica.DSL.resource/2` and to the `Corsica` plug (along with their default
+  values) are:
 
-    * `:origins` - is a single value or a list of values. It specifies which
-      origins are accepted. `"*"` can only appear as a single value and not in
-      a list of valid origins. Origins can be specified either as strings or as
-      regexes. The default value is `"*"`.
-    * `:allow_headers` - is a list of headers. Sets the value of the
-      `access-control-allow-headers` header used with preflight requests.
+    * `:allow_headers` - is a list of headers (as binaries). Sets the value of
+      the `access-control-allow-headers` header used with preflight requests.
       Defaults to `[]` (no headers are allowed).
     * `:allow_methods` - is a list of HTTP methods (as binaries). Sets the value
       of the `access-control-allow-methods` header used with preflight requests.
@@ -114,10 +125,6 @@ defmodule Corsica do
   `Corsica.DSL.resources/2` macro. By default, this option is not present,
   meaning that all resources are CORS-enabled.
 
-  ### Vary header
-
-  If `:origins` is a list with more than one value and the request origin matches,
-  then a `Vary: Origin` header is added to the response.
 
   ### Preflight requests
 
@@ -254,14 +261,17 @@ defmodule Corsica do
 
   defp allowed_origin?("*", _origin), do: true
   defp allowed_origin?(allowed_origins, origin) do
-    matching_origin? = fn
-      origin, origin -> true
-      allowed, _origin when is_binary(allowed) -> false
-      allowed, origin -> Regex.match?(allowed, origin)
-    end
-
-    Enum.any?(allowed_origins, &matching_origin?.(&1, origin))
+    Enum.any?(allowed_origins, &matching_origin?(&1, origin))
   end
+
+  defp matching_origin?(origin, origin),
+    do: true
+  defp matching_origin?(allowed, _actual) when is_binary(allowed),
+    do: false
+  defp matching_origin?(allowed, actual) when is_function(allowed),
+    do: allowed.(actual)
+  defp matching_origin?(allowed, actual),
+    do: Regex.match?(allowed, actual)
 
   defp simple_or_preflight(conn, opts) do
     mod = if preflight_request?(conn), do: Preflight, else: Simple

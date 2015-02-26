@@ -3,29 +3,18 @@ defmodule Corsica.Helpers do
 
   @doc """
   Compiles a route into a pattern-matchable list.
-
-  If the `:all` atom is given, a wildcard match (`_`) is returned.
-
-  ## Examples
-
-      iex> compile_route :all
-      {:_, [], Elixir}
-
-      iex> compile_route "/foo/bar"
-      ["foo", "bar"]
-
-      iex> compile_route "/wildcard/*"
-      ["wildcard", {:_, [], Elixir}]
-
   """
   def compile_route(:all), do: quote(do: _)
   def compile_route(route) do
-    route
-    |> String.split("/")
-    |> Enum.reject(&match?("", &1))
-    |> Enum.map(&replace_wildcard/1)
+    route = route |> String.split("/") |> Enum.reject(&match?("", &1))
+    cond do
+      route == ["*"] ->
+        quote(do: _)
+      List.last(route) == "*" ->
+        route = List.delete_at(route, -1)
+        quote(do: [unquote_splicing(route)|_])
+      true ->
+        route
+    end
   end
-
-  defp replace_wildcard("*"), do: quote(do: _)
-  defp replace_wildcard(any), do: any
 end

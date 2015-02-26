@@ -13,7 +13,9 @@ defmodule CorsicaTest do
     resources ["/all"]
     resources ["/only-some-origins"], origins: ["a.b", "b.a"]
     resources ["/only-one-origin"], origins: ["a.b"]
+
     resources ["/regex"], origins: ~r/(foo|bar)\.com$/
+    resources ["/function"], origins: &String.starts_with?(&1, "foo")
 
     resources ["/allow_origin"],
       origins: ["foo.bar"],
@@ -76,6 +78,10 @@ defmodule CorsicaTest do
     assert resp_header(conn, "access-control-expose-headers") == "foobar"
 
     conn = ac_conn(:get, "/wildcard/foobar", [{"origin", "bar.com"}]) |> c(Matching)
+    assert resp_header(conn, "access-control-allow-origin") == "*"
+    assert resp_header(conn, "access-control-expose-headers") == "wildcard"
+
+    conn = ac_conn(:get, "/wildcard/foo/bar", [{"origin", "bar.com"}]) |> c(Matching)
     assert resp_header(conn, "access-control-allow-origin") == "*"
     assert resp_header(conn, "access-control-expose-headers") == "wildcard"
 
@@ -168,6 +174,14 @@ defmodule CorsicaTest do
 
     conn = ac_conn(:get, "/regex") |> put_origin("http://baz.com") |> c(Options)
     refute resp_header(conn, "access-contorl-allow-origin")
+  end
+
+  test "function origins" do
+    conn = ac_conn(:get, "/function") |> put_origin("foo.com") |> c(Options)
+    assert resp_header(conn, "access-control-allow-origin") == "foo.com"
+
+    conn = ac_conn(:get, "/function") |> put_origin("bar.com") |> c(Options)
+    refute resp_header(conn, "access-control-allow-origin")
   end
 
   test "Vary header" do
