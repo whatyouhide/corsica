@@ -1,5 +1,8 @@
 # Corsica
 
+[![Build Status](https://travis-ci.org/whatyouhide/corsica.svg?branch=master&style=flat-square)](https://travis-ci.org/whatyouhide/corsica)
+[![Inline docs](http://inch-ci.org/github/whatyouhide/corsica.svg?branch=master)](http://inch-ci.org/github/whatyouhide/corsica)
+
 Corsica is a plug and a DSL for handling [CORS][cors-wiki] requests.
 [Documentation can be found online][docs].
 
