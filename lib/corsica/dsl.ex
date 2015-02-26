@@ -38,7 +38,7 @@ defmodule Corsica.DSL do
       compile_resource(route, opts)
     end
 
-    if Enum.find(single_resources, &match?({:any, _}, &1)) do
+    if Enum.find(single_resources, &match?({:all, _}, &1)) do
       routes
     else
       last_match = quote do

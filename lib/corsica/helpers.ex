@@ -15,7 +15,7 @@ defmodule Corsica.Helpers do
       ["foo", "bar"]
 
       iex> compile_route "/wildcard/*"
-      ["wildcard", _]
+      ["wildcard", {:_, [], Elixir}]
 
   """
   def compile_route(:all), do: quote(do: _)
