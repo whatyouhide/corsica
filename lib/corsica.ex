@@ -1,81 +1,64 @@
 defmodule Corsica do
   @moduledoc """
-  Plug and DSL for handling CORS requests.
+  Plug-based swiss-army knife for CORS requests.
 
-  Corsica provides facilites for working with
-  [CORS](http://en.wikipedia.org/wiki/Cross-origin_resource_sharing) in
-  Plug-based applications. It is (well, tries to be!) compliant with the [CORS
-  specification defined by the W3C](http://www.w3.org/TR/cors/).
+  Corsica provides facilities for dealing with
+  [CORS](http://en.wikipedia.org/wiki/Cross-origin_resource_sharing) requests
+  and responses. It provides:
 
-  Corsica can be used in two ways:
+    * low-level functions that lets you decide when and where to deal with CORS
+      requests and CORS response headers;
+    * a plug that handles CORS requests and responds to preflight requests;
+    * a router that can be used in your modules in order to turn them into CORS
+      handlers which provide fine control for dealing with CORS requests.
 
-    * as a generator for fine-tuned plugs
-    * as a stand-alone plug
+  ## How it works
 
-  ## Generator
+  Corsica is compliant with the [W3C CORS
+  specification](http://www.w3.org/TR/cors/). As per this specification, Corsica
+  doesn't put any CORS response headers in a connection that holds an invalid
+  CORS request. "Invalid CORS request" can mean that a request doesn't have an
+  `Origin` hedaer (so it's not a CORS request at all) or that it's a CORS
+  request but:
 
-  The `Corsica` module can be used in any module in order to turn that module
-  into a plug that handles CORS request. This is useful if there are a lot of
-  different cases to handle (multiple origins, headers based on resources) since
-  it gives fine control over the behaviour of the generated plug.
+    * the `Origin` request header doesn't match any of the allowed origins
+    * the request is a preflight request but it requests to use a method or
+      some headers that are not allowed (via the `Access-Control-Request-Method`
+      and `Access-Control-Request-Headers` headers)
 
-  A quick example may make this easier to understand:
+  When some options that are not mandatory and have no default value (such
+  `:max_age`) are not present, the relative header will often not be sent at
+  all. This is compliant with the specification and at the same time it reduces
+  (even if by a handful of bytes) the size of the request.
 
-      defmodule MyApp.CORS do
-        use Corsica,
-          origins: "*",
-          max_age: 600,
-          allow_headers: ~w(X-My-Header)
+  Follows a list of all the *supported* response headers:
 
-        resources ["/foo", "/bar"], allow_methods: ~w(PUT PATCH)
+    * `Access-Control-Allow-Origin`
+    * `Access-Control-Allow-Methods`
+    * `Access-Control-Allow-Headers`
+    * `Access-Control-Allow-Credentials`
+    * `Access-Control-Expose-Headers`
+    * `Access-Control-Max-Age`
 
-        resources ["/users"],
-          allow_credentials: true,
-          allow_methods: ~w(HEAD GET POST PUT PATCH DELETE)
-      end
+  ## Using Corsica as a plug
 
-  In the example above, the `MyApp.CORS` module becomes a valid plug since the
-  `Corsica` module is used. The `resources/2` macro is used in order to declare
-  resources (routes) for which the server should respond with CORS headers.
-  Options passed to `resources/2` are used to set the values of the CORS
-  headers (for more information on options, read the "Options" section); they
-  override the global options that can be passed to the `use` macro, which apply
-  to all declared resources.
+  When `Corsica` is used as a plug, it intercepts all requests; it only sets a
+  bunch of CORS headers for regular CORS requests, but it responds (with a 200
+  OK and the appropriate headers) to preflight requests.
 
-  Given the example above, the `MyApp.CORS` plug can be used as follows:
+  If you want to use `Corsica` as a plug, be sure to plug it in your plug
+  pipeline **before** any router: routers like `Plug.Router` (or
+  `Phoenix.Router`) respond to HTTP verbs as well as request urls, so if
+  `Corsica` is plugged after a router then preflight requests (which are
+  `OPTIONS` requests) will often result in 404 errors since no route responds to
+  an `OPTIONS` request.
 
-      defmodule MyApp.Router do
-        use Plug.Router
-        plug MyApp.CORS
-        plug :match
-        plug :dispatch
+  ## Using Corsica as a router generator
 
-        match _ do
-          send_resp(conn, 200, "OK")
-        end
-      end
-
-  For more information on declaring single resources, have a look at the
-  `Corsica.DSL.resources/2` macro (which is imported when `Corsica` is used).
-
-  ## Plug
-
-  In its simplest form, Corsica can be used as a stand-alone plug too. This
-  prevents from fine-tuning the CORS header on a per-resource basis, but it
-  supports all other options supported by the plug generator and can be useful
-  for simple CORS needs.
-
-      defmodule MyApp.Endpoint do
-        plug Corsica,
-          origins: ["http://foo.com"],
-          max_age: 600,
-          allow_headers: ~w(X-Header),
-          allow_methods: ~w(GET POST),
-          expose_headers: ~w(Content-Type)
-
-        plug Plug.Session
-        plug :router
-      end
+  When `Corsica` is used as a plug, it doesn't provide control over which urls
+  are CORS-enabled or with which options. In order to do that, you can use
+  `Corsica.Router`. See the documentation for `Corsica.Router` for more
+  information.
 
   ## Origins
 
@@ -152,6 +135,11 @@ defmodule Corsica do
   # > Access-Control-Allow-Origin] header for a resource that supports
   # > credentials.
   #
+  # http://www.w3.org/TR/cors/#resource-implementation
+  # > [...] [authors] should send a Vary: Origin HTTP header or provide other
+  # > appropriate control directives to prevent caching of such responses, which
+  # > may be inaccurate if re-used across-origins.
+  #
   # http://www.w3.org/TR/cors/#resource-preflight-requests, item 9.
   # > If method is a simple method, [setting the Access-Control-Allow-Methods
   # > header] may be skipped (but it is not prohibited).
@@ -168,18 +156,9 @@ defmodule Corsica do
   # > skipped. Simply returning supported headers from
   # > Access-Control-Allow-Headers can be enough.
   # The same argument for Access-Control-Allow-Methods can be made here.
-  #
-  # http://www.w3.org/TR/cors/#resource-implementation
-  # > [...] [authors] should send a Vary: Origin HTTP header or provide other
-  # > appropriate control directives to prevent caching of such responses, which
-  # > may be inaccurate if re-used across-origins.
-
 
   import Plug.Conn
-  alias Corsica.Preflight
-  alias Corsica.Common
-  alias Corsica.Simple
-  alias Corsica.Helpers
+  alias Plug.Conn
 
   @default_opts [
     origins: "*",
@@ -188,38 +167,23 @@ defmodule Corsica do
     allow_credentials: false,
   ]
 
-  @doc false
-  defmacro __using__(opts) do
-    quote do
-      use Corsica.DSL, unquote(opts)
-    end
-  end
-
   @behaviour Plug
 
-  def init(opts), do: sanitize_opts(opts)
+  # Plug callbacks.
 
-  def call(%Plug.Conn{path_info: path_info} = conn, opts) do
-    {routes, opts} = Keyword.pop(opts, :resources)
+  def init(opts) do
+    sanitize_opts(opts)
+  end
+
+  def call(%Conn{} = conn, opts) do
     cond do
-      not cors_request?(conn)            -> conn
-      !routes                            -> handle_req(conn, opts)
-      matching_route?(path_info, routes) -> handle_req(conn, opts)
-      true                               -> conn
+      not cors_req?(conn)      -> conn
+      not preflight_req?(conn) -> put_cors_simple_resp_headers(conn, opts)
+      true                     -> send_preflight_resp(conn, opts)
     end
   end
 
-  @spec matching_route?([String.t], [String.t]) :: boolean
-  defp matching_route?(path_info, routes) do
-    compiled = Enum.map(routes, &Helpers.compile_route/1)
-
-    Enum.any? compiled, fn(route) ->
-      Code.eval_quoted(quote do
-        match?(unquote(route), unquote(path_info))
-      end) |> elem(0)
-    end
-  end
-
+  # Public so that it can be called from `Corsica.Router` (and for testing too).
   @doc false
   def sanitize_opts(opts) do
     import Enum, only: [map: 2]
@@ -229,10 +193,16 @@ defmodule Corsica do
       opts = Keyword.update!(opts, :max_age, &to_string/1)
     end
 
+    if opts[:expose_headers] do
+      opts = Keyword.update!(opts, :expose_headers, &Enum.join(&1, ", "))
+    end
+
     opts
     |> Keyword.update!(:allow_methods, fn(m) -> map(m, &String.upcase/1) end)
     |> Keyword.update!(:allow_headers, fn(h) -> map(h, &String.downcase/1) end)
   end
+
+  # Utilities
 
   @doc """
   Checks whether a given connection holds a CORS request.
@@ -241,49 +211,138 @@ defmodule Corsica do
   request. A request is a CORS request if and only if it has an `Origin` request
   header.
   """
-  @spec cors_request?(Plug.Conn.t) :: boolean
-  def cors_request?(conn),
-    do: get_origin(conn) != nil
+  @spec cors_req?(Conn.t) :: boolean
+  def cors_req?(%Conn{} = conn),
+    do: get_req_header(conn, "origin") != []
 
   @doc """
   Checks whether a given connection holds a CORS preflight request.
 
-  Like `cors_request?/1`, it doesn't check that the preflight request is valid:
+  Like `cors_req?/1`, it doesn't check that the preflight request is valid:
   it just checks that it's a preflight request. A CORS request is considered to
   be a preflight request if and only if it is an `OPTIONS` request and it has an
-  `Access-Control-Request-Method` request header.
-
-  Note that this function does not check if the given request is a CORS one. If
-  you want to check for that too, use `cors_request?/1`.
+  `Access-Control-Request-Method` request header. If a request is a valid
+  preflight request, it's a valid CORS request too.
   """
-  @spec preflight_request?(Plug.Conn.t) :: boolean
-  def preflight_request?(%Plug.Conn{method: "OPTIONS"} = conn),
-    do: get_req_header(conn, "access-control-request-method") != []
-  def preflight_request?(%Plug.Conn{}),
+  @spec preflight_req?(Conn.t) :: boolean
+  def preflight_req?(%Conn{method: "OPTIONS"} = conn),
+    do: cors_req?(conn) and get_req_header(conn, "access-control-request-method") != []
+  def preflight_req?(%Conn{}),
     do: false
 
-  # Request handling.
+  # Request handling
 
-  @doc false
-  def handle_req(conn, opts) do
-    invalid? = not(allowed_origin?(opts[:origins], get_origin(conn))) or
-      (preflight_request?(conn) and not Preflight.valid?(conn, opts))
+  # assumes an Origin header, but nothing more.
+  def send_preflight_resp(%Conn{} = conn, status \\ 200, body \\ "", opts) do
+    conn
+    |> put_cors_preflight_resp_headers(opts)
+    |> halt
+    |> send_resp(status, body)
+  end
 
-    if invalid? do
+  def put_cors_simple_resp_headers(%Conn{} = conn, opts) do
+    opts = sanitize_opts(opts)
+    if cors_req?(conn) && allowed_origin?(conn, opts) do
       conn
+      |> put_common_headers(opts)
+      |> put_expose_headers_header(opts)
     else
       conn
-      |> Common.put_common_headers(opts)
-      |> simple_or_preflight(opts)
     end
   end
 
-  defp allowed_origin?("*", _origin),
+  def put_cors_preflight_resp_headers(%Conn{} = conn, opts) do
+    opts = sanitize_opts(opts)
+    if allowed_origin?(conn, opts) and preflight_req?(conn) and allowed_preflight?(conn, opts) do
+      conn
+      |> put_common_headers(opts)
+      |> put_allow_methods_header(opts)
+      |> put_allow_headers_header(opts)
+      |> put_max_age_header(opts)
+    else
+      conn
+    end
+  end
+
+  defp put_common_headers(conn, opts) do
+    conn
+    |> put_allow_credentials_header(opts)
+    |> put_allow_origin_header(opts)
+    |> update_vary_header(opts[:origins])
+  end
+
+  defp put_allow_credentials_header(conn, opts) do
+    if opts[:allow_credentials] do
+      put_resp_header(conn, "access-control-allow-credentials", "true")
+    else
+      conn
+    end
+  end
+
+  defp put_allow_origin_header(conn, opts) do
+    actual_origin   = conn |> get_req_header("origin") |> hd
+    allowed_origins = Keyword.fetch!(opts, :origins)
+
+    value = if allowed_origins == "*" and not opts[:allow_credentials] do
+      "*"
+    else
+      actual_origin
+    end
+
+    put_resp_header(conn, "access-control-allow-origin", value)
+  end
+
+  # Only update the Vary header if the origin is not a binary (it could be a
+  # regex or a function) or if there's a list of more than one origins.
+  defp update_vary_header(conn, "*"),
+    do: conn
+  defp update_vary_header(conn, origin) when is_binary(origin),
+    do: conn
+  defp update_vary_header(conn, [origin]) when is_binary(origin),
+    do: conn
+  defp update_vary_header(conn, _origin),
+    do: update_in(conn.resp_headers, &[{"vary", "origin"}|&1])
+
+  defp put_allow_methods_header(conn, opts) do
+    value = opts |> Keyword.fetch!(:allow_methods) |> Enum.join(", ")
+    put_resp_header(conn, "access-control-allow-methods", value)
+  end
+
+  defp put_allow_headers_header(conn, opts) do
+    value = opts |> Keyword.fetch!(:allow_headers) |> Enum.join(", ")
+    put_resp_header(conn, "access-control-allow-headers", value)
+  end
+
+  defp put_max_age_header(conn, opts) do
+    if max_age = opts[:max_age] do
+      put_resp_header(conn, "access-control-max-age", max_age)
+    else
+      conn
+    end
+  end
+
+  defp put_expose_headers_header(conn, opts) do
+    expose_headers = opts[:expose_headers]
+    if expose_headers && expose_headers != "" do
+      put_resp_header(conn, "access-control-expose-headers", expose_headers)
+    else
+      conn
+    end
+  end
+
+  # Made public for testing
+  @doc false
+  def allowed_origin?(conn, opts) do
+    [origin|_] = get_req_header(conn, "origin")
+    do_allowed_origin?(opts[:origins], origin)
+  end
+
+  defp do_allowed_origin?("*", _origin),
     do: true
-  defp allowed_origin?(allowed_origins, origin)
+  defp do_allowed_origin?(allowed_origins, origin)
     when is_list(allowed_origins),
     do: Enum.any?(allowed_origins, &matching_origin?(&1, origin))
-  defp allowed_origin?(allowed_origin, origin),
+  defp do_allowed_origin?(allowed_origin, origin),
     do: matching_origin?(allowed_origin, origin)
 
   defp matching_origin?(origin, origin),
@@ -295,21 +354,29 @@ defmodule Corsica do
   defp matching_origin?(allowed, actual),
     do: Regex.match?(allowed, actual)
 
-  defp simple_or_preflight(conn, opts) do
-    if preflight_request?(conn) do
-      conn
-      |> Preflight.put_preflight_headers(opts)
-      |> halt
-      |> send_resp(200, "")
-    else
-      conn
-      |> Simple.put_simple_headers(opts)
-    end
+  # Made public for testing.
+  @doc false
+  def allowed_preflight?(conn, opts) do
+    opts = sanitize_opts(opts)
+    allowed_request_method?(conn, opts[:allow_methods]) and
+      allowed_request_headers?(conn, opts[:allow_headers])
   end
 
-  @compile {:inline, get_origin: 1}
-  @doc false
-  def get_origin(conn) do
-    conn |> get_req_header("origin") |> List.first
+  defp allowed_request_method?(conn, allowed_methods) do
+    # We can safely assume there's an Access-Control-Request-Method header
+    # otherwise the request wouldn't have been identified as a preflight
+    # request.
+    req_method = conn |> get_req_header("access-control-request-method") |> hd
+    req_method in allowed_methods
+  end
+
+  defp allowed_request_headers?(conn, allowed_headers) do
+    # If there is no Access-Control-Request-Headers header, this will all amount
+    # to an empty list for which `Enum.all?/2` will return `true`.
+    conn
+    |> get_req_header("access-control-request-headers")
+    |> Enum.flat_map(&Plug.Conn.Utils.list/1)
+    |> Enum.map(&String.downcase/1)
+    |> Enum.all?(&(&1 in allowed_headers))
   end
 end

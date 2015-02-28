@@ -2,239 +2,196 @@ defmodule CorsicaTest do
   use ExUnit.Case, async: true
   use Plug.Test
 
-  defmodule Matching do
-    use Corsica, origins: "*"
-    resources ["/foo", "/bar"], expose_headers: ~w(foobar)
-    resources ["/wildcard/*"], expose_headers: ~w(wildcard)
+  import Corsica
+
+  test "cors_req?/1" do
+    refute conn(:get, "/") |> cors_req?
+    assert conn(:get, "/")
+           |> put_origin("http://example.com")
+           |> cors_req?
   end
 
-  defmodule Options do
-    use Corsica, origins: "*"
-    resources ["/all"]
-    resources ["/only-some-origins"], origins: ["a.b", "b.a"]
-    resources ["/only-one-origin"], origins: ["a.b"]
+  test "preflight_req?/1" do
+    refute conn(:get, "/") |> put_origin("http://example.com") |> preflight_req?
+    refute conn(:head, "/") |> put_origin("http://example.com") |> preflight_req?
+    refute conn(:options, "/") |> put_origin("http://example.com") |> preflight_req?
 
-    resources ["/regex"], origins: ~r/(foo|bar)\.com$/
-    resources ["/function"], origins: &String.starts_with?(&1, "foo")
+    assert conn(:options, "/")
+           |> put_origin("http://example.com")
+           |> put_req_header("access-control-request-method", "GET")
+           |> preflight_req?
+
+    # Non-CORS requests aren't preflight requests, for sure.
+    refute conn(:get, "/") |> preflight_req?
+    refute conn(:options, "/")
+           |> put_req_header("access-control-request-method", "GET")
+           |> preflight_req?
   end
 
-  defmodule Preflight do
-    use Corsica, origins: "*",
-      allow_methods: ~w(PUT PATCH),
-      allow_headers: ~w(X-Header X-Other-Header),
-      max_age: 300
-
-    resources ["/*"]
+  test "sanitize_opts/1" do
+    assert sanitize_opts(max_age: 600)[:max_age] == "600"
+    assert sanitize_opts([])[:max_age] == nil
+    assert sanitize_opts(allow_methods: ~w(get pOSt))[:allow_methods] == ~w(GET POST)
+    assert sanitize_opts(allow_headers: ~w(X-Header))[:allow_headers] == ~w(x-header)
+    assert sanitize_opts(expose_headers: ~w(X-Foo X-Bar))[:expose_headers] == "X-Foo, X-Bar"
   end
 
-  defmodule Credentials do
-    use Corsica, origins: "*"
-    resources ["/allow-credentials"], allow_credentials: true
-    resources ["/dont-allow-credentials"], allow_credentials: false
+  test "allowed_origin?/2: allowed origins" do
+    conn = conn(:get, "/") |> put_origin("http://foo.com")
+    assert allowed_origin?(conn, origins: "*")
+    assert allowed_origin?(conn, origins: "http://foo.com")
+    assert allowed_origin?(conn, origins: ["http://foo.com"])
+    assert allowed_origin?(conn, origins: ["http://bar.com", "http://foo.com"])
+    assert allowed_origin?(conn, origins: ~r/(foo|bar)\.com$/)
+    assert allowed_origin?(conn, origins: &(&1 =~ "foo.com"))
   end
 
-  defmodule AsPlug do
-    use Plug.Builder
-    plug Corsica, origins: ["foo.com"], resources: ["/wildcard/*", "/foo"]
-    plug :match
-
-    def match(conn, _opts), do: send_resp(conn, 200, "match")
+  test "allowed_origin?/2: non-allowed origins" do
+    conn = conn(:get, "/") |> put_origin("http://foo.com")
+    refute allowed_origin?(conn, origins: "foo.com")
+    refute allowed_origin?(conn, origins: ["http://foo.org"])
+    refute allowed_origin?(conn, origins: ["http://bar.com", "http://baz.com"])
+    refute allowed_origin?(conn, origins: ~r/(foo|bar)\.org$/)
+    refute allowed_origin?(conn, origins: &(&1 == String.upcase(&1)))
   end
 
-  test "cors_request?/1" do
-    import Corsica, only: [cors_request?: 1]
+  test "allowed_preflight?/2: allowed requests" do
+    conn = conn(:get, "/")
+            |> put_origin("http://foo.com")
+            |> put_req_header("access-control-request-method", "PUT")
+    assert allowed_preflight?(conn, allow_methods: ~w(PUT PATCH))
+    assert allowed_preflight?(conn, allow_methods: ~w(put))
+    assert allowed_preflight?(conn, allow_methods: ~w(PUT), allow_headers: ~w(X-Foo))
 
-    conn = ac_conn(:get, "/")
-    refute cors_request?(conn)
-    conn = ac_conn(:get, "/") |> put_origin("foo")
-    assert cors_request?(conn)
+    conn = conn |> put_req_header("access-control-request-headers", "X-Foo, X-Bar")
+    assert allowed_preflight?(conn, allow_methods: ~w(PUT), allow_headers: ~w(X-Bar x-foo))
   end
 
-  test "preflight_request?/1" do
-    import Corsica, only: [preflight_request?: 1]
-    headers = [{"origin", "http://foo.bar.com"}]
+  test "allowed_preflight?/2: non-allowed requests" do
+    conn = conn(:get, "/")
+            |> put_origin("http://foo.com")
+            |> put_req_header("access-control-request-method", "OPTIONS")
+    refute allowed_preflight?(conn, allow_methods: ~w(PUT PATCH))
+    refute allowed_preflight?(conn, allow_methods: ~w(put))
+    refute allowed_preflight?(conn, allow_methods: ~w(PUT), allow_headers: ~w(X-Foo))
 
-    conn = ac_conn(:get, "/", headers)
-    refute preflight_request?(conn)
-    conn = ac_conn(:post, "/", headers)
-    refute preflight_request?(conn)
-    conn = ac_conn(:head, "/", headers)
-    refute preflight_request?(conn)
-    conn = ac_conn(:options, "/", headers)
-    refute preflight_request?(conn)
-    conn = ac_conn(:options, "/", [{"access-control-request-method", "GET"}|headers])
-    assert preflight_request?(conn)
+    conn = conn |> put_req_header("access-control-request-headers", "X-Foo, X-Bar")
+    refute allowed_preflight?(conn, allow_methods: ~w(OPTIONS), allow_headers: ~w(X-Bar))
+    refute allowed_preflight?(conn, allow_methods: ~w(OPTIONS), allow_headers: ~w(x-bar))
   end
 
-  test "matches correctly" do
-    conn = ac_conn(:get, "/foo", [{"origin", "foo.com"}]) |> c(Matching)
-    assert resp_header(conn, "access-control-allow-origin") == "*"
-    assert resp_header(conn, "access-control-expose-headers") == "foobar"
+  test "put_cors_simple_resp_headers/2: access-control-allow-origin" do
+    conn = conn(:get, "/")
+            |> put_origin("http://foo.bar")
+            |> put_cors_simple_resp_headers(origins: "*")
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+    assert get_resp_header(conn, "access-control-expose-headers") == []
 
-    conn = ac_conn(:get, "/wildcard/foobar", [{"origin", "bar.com"}]) |> c(Matching)
-    assert resp_header(conn, "access-control-allow-origin") == "*"
-    assert resp_header(conn, "access-control-expose-headers") == "wildcard"
-
-    conn = ac_conn(:get, "/wildcard/foo/bar", [{"origin", "bar.com"}]) |> c(Matching)
-    assert resp_header(conn, "access-control-allow-origin") == "*"
-    assert resp_header(conn, "access-control-expose-headers") == "wildcard"
-
-    # When a request doesn't match, no CORS headers are returned.
-    conn = ac_conn(:get, "/no-match", [{"origin", "baz.com"}]) |> c(Matching)
-    refute resp_header(conn, "access-control-allow-origin")
-    refute resp_header(conn, "access-control-expose-headers")
+    conn = conn(:get, "/") |> put_cors_simple_resp_headers(origins: "*")
+    assert get_resp_header(conn, "access-control-allow-origin") == []
   end
 
-  test "options can be passed to `use/2` and then overridden" do
-    conn = ac_conn(:get, "/all") |> put_origin("foo.bar") |> Options.call([])
-    assert resp_header(conn, "access-control-allow-origin") == "*"
+  test "put_cors_simple_resp_headers/2: access-control-allow-credentials" do
+    conn = conn(:get, "/foo")
+            |> put_origin("http://foo.bar")
+            |> put_cors_simple_resp_headers(allow_credentials: true)
+    assert get_resp_header(conn, "access-control-allow-credentials") == ["true"]
+    assert get_resp_header(conn, "access-control-allow-origin") == ["http://foo.bar"]
+    assert get_resp_header(conn, "access-control-expose-headers") == []
 
-    conn = ac_conn(:get, "/only-some-origins") |> put_origin("b.a") |> Options.call([])
-    assert resp_header(conn, "access-control-allow-origin") == "b.a"
-
-    conn = ac_conn(:get, "/only-some-origins") |> put_origin("not.allowed") |> c(Options)
-    refute resp_header(conn, "access-control-allow-origin")
+    conn = conn(:get, "/foo")
+            |> put_origin("http://foo.bar")
+            |> put_cors_simple_resp_headers(allow_credentials: false)
+    assert get_resp_header(conn, "access-control-allow-credentials") == []
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+    assert get_resp_header(conn, "access-control-expose-headers") == []
   end
 
-  test "simple request: valid origin" do
-    conn = ac_conn(:get, "/only-some-origins", [{"origin", "a.b"}]) |> c(Options)
-    assert resp_header(conn, "access-control-allow-origin") == "a.b"
+  test "put_cors_simple_resp_headers/2: access-control-expose-headers" do
+    conn = conn(:get, "/foo")
+            |> put_origin("http://foo.bar")
+            |> put_cors_simple_resp_headers(expose_headers: ~w(X-Foo X-Bar))
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+    assert get_resp_header(conn, "access-control-expose-headers") == ["X-Foo, X-Bar"]
   end
 
-  test "simple request: invalid origin" do
-    conn = ac_conn(:get, "/only-some-origins", [{"origin", "not.valid"}]) |> c(Options)
-    refute resp_header(conn, "access-control-allow-origin")
+  test "put_cors_simple_resp_headers/2: 'origin' is added to the 'vary' header" do
+    conn = conn(:get, "/foo") |> put_origin("http://foo.com")
+
+    new_conn = put_cors_simple_resp_headers(conn, origins: "*")
+    assert get_resp_header(new_conn, "vary") == []
+
+    new_conn = put_cors_simple_resp_headers(conn, origins: "http://foo.com")
+    assert get_resp_header(new_conn, "vary") == []
+
+    new_conn = put_cors_simple_resp_headers(conn, origins: ["http://foo.com"])
+    assert get_resp_header(new_conn, "vary") == []
+
+    new_conn = put_cors_simple_resp_headers(conn, origins: ["http://foo.com", "http://bar.com"])
+    assert get_resp_header(new_conn, "vary") == ["origin"]
+
+    new_conn = conn
+                |> put_resp_header("vary", "content-length")
+                |> put_cors_simple_resp_headers(origins: ["http://foo.com", "http://bar.com"])
+    assert get_resp_header(new_conn, "vary") == ["origin", "content-length"]
   end
 
-  test "preflight requests: valid method" do
-    conn = ac_conn(:options, "/foo")
-           |> put_origin("a.b")
-           |> put_req_header("access-control-request-method", "PUT")
-           |> c(Preflight)
+  test "put_cors_preflight_resp_headers/2: access-control-allow-methods" do
+    conn = conn(:options, "/")
+            |> put_origin("http://example.com")
+            |> put_req_header("access-control-request-method", "PUT")
+            |> put_cors_preflight_resp_headers(allow_methods: ~w(GET PUT))
 
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+    assert get_resp_header(conn, "access-control-allow-methods") == ["GET, PUT"]
+    assert get_resp_header(conn, "access-control-allow-headers") == [""]
+    assert get_resp_header(conn, "access-control-max-age") == []
+  end
+
+  test "put_cors_preflight_resp_headers/2: access-control-allow-headers" do
+    opts = [allow_methods: ~w(PUT), allow_headers: ~w(X-Foo X-Bar)]
+    conn = conn(:options, "/")
+            |> put_origin("http://example.com")
+            |> put_req_header("access-control-request-method", "PUT")
+            |> put_cors_preflight_resp_headers(opts)
+
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+    assert get_resp_header(conn, "access-control-allow-methods") == ["PUT"]
+    assert get_resp_header(conn, "access-control-allow-headers") == ["x-foo, x-bar"]
+    assert get_resp_header(conn, "access-control-max-age") == []
+  end
+
+  test "put_cors_preflight_resp_headers/2: access-control-max-age" do
+    conn = conn(:options, "/")
+            |> put_origin("http://example.com")
+            |> put_req_header("access-control-request-method", "PUT")
+            |> put_cors_preflight_resp_headers(max_age: 400)
+    assert get_resp_header(conn, "access-control-max-age") == ["400"]
+  end
+
+  test "send_preflight_resp/4: valid preflight request" do
+    conn = conn(:options, "/")
+            |> put_origin("http://example.com")
+            |> put_req_header("access-control-request-method", "PUT")
+            |> send_preflight_resp(allow_methods: ~w(PUT))
+    assert conn.state == :sent
     assert conn.status == 200
     assert conn.resp_body == ""
-    assert resp_header(conn, "access-control-allow-methods") == "PUT, PATCH"
-    assert resp_header(conn, "access-control-allow-headers") == "x-header, x-other-header"
-    assert resp_header(conn, "access-control-allow-origin") == "*"
-    assert resp_header(conn, "access-control-max-age") == "300"
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+    assert get_resp_header(conn, "access-control-allow-methods") == ["PUT"]
   end
 
-  test "preflight requests: invalid method" do
-    conn = ac_conn(:options, "/foo")
-           |> put_origin("a.b")
-           |> put_req_header("access-control-request-method", "OPTIONS")
-           |> c(Preflight)
-
-    refute conn.status
-    refute conn.resp_body
-    refute resp_header(conn, "access-control-allow-methods")
-    refute resp_header(conn, "access-control-allow-headers")
-    refute resp_header(conn, "access-control-allow-origin")
-    refute resp_header(conn, "access-control-max-age")
-  end
-
-  test "preflight requests: valid headers" do
-    headers = [{"origin", "a.b"},
-               {"access-control-request-method", "PATCH"},
-               {"access-control-request-headers", "X-Other-Header, X-Header"}]
-    conn = ac_conn(:options, "/foo", headers) |> c(Preflight)
-
-    assert conn.status == 200
+  test "send_preflight_resp/4: invalid preflight request" do
+    conn = conn(:options, "/")
+            |> put_origin("http://example.com")
+            |> put_req_header("access-control-request-method", "PUT")
+            |> send_preflight_resp(400, allow_methods: ~w(GET POST))
+    assert conn.state == :sent
+    assert conn.status == 400
     assert conn.resp_body == ""
-    assert resp_header(conn, "access-control-allow-methods") == "PUT, PATCH"
-    assert resp_header(conn, "access-control-allow-headers") == "x-header, x-other-header"
-    assert resp_header(conn, "access-control-allow-origin") == "*"
-    assert resp_header(conn, "access-control-max-age") == "300"
+    assert get_resp_header(conn, "access-control-allow-origin") == []
+    assert get_resp_header(conn, "access-control-allow-methods") == []
   end
 
-  test "preflight requests: invalid headers" do
-    headers = [{"origin", "a.b"},
-               {"access-control-request-method", "PATCH"},
-               {"access-control-request-headers", "X-Evil-Header, X-Header"}]
-    conn = ac_conn(:options, "/foo", headers) |> c(Preflight)
-
-    refute conn.status
-    refute conn.resp_body
-    refute resp_header(conn, "access-control-allow-methods")
-    refute resp_header(conn, "access-control-allow-headers")
-    refute resp_header(conn, "access-control-allow-origin")
-    refute resp_header(conn, "access-control-max-age")
-  end
-
-  test "regex origins" do
-    conn = ac_conn(:get, "/regex") |> put_origin("http://foo.com") |> c(Options)
-    assert resp_header(conn, "access-control-allow-origin") == "http://foo.com"
-
-    conn = ac_conn(:get, "/regex") |> put_origin("http://baz.com") |> c(Options)
-    refute resp_header(conn, "access-contorl-allow-origin")
-  end
-
-  test "function origins" do
-    conn = ac_conn(:get, "/function") |> put_origin("foo.com") |> c(Options)
-    assert resp_header(conn, "access-control-allow-origin") == "foo.com"
-
-    conn = ac_conn(:get, "/function") |> put_origin("bar.com") |> c(Options)
-    refute resp_header(conn, "access-control-allow-origin")
-  end
-
-  test "Vary header" do
-    conn = ac_conn(:get, "/only-some-origins") |> put_origin("a.b") |> c(Options)
-    assert resp_header(conn, "vary") == "origin"
-
-    conn = ac_conn(:get, "/only-some-origins")
-            |> put_origin("a.b")
-            |> put_resp_header("vary", "host")
-            |> c(Options)
-    assert "origin" in resp_header(conn, "vary")
-
-    conn = ac_conn(:get, "/only-one-origin") |> put_origin("a.b") |> c(Options)
-    refute resp_header(conn, "vary")
-  end
-
-  test "credentials" do
-    conn = ac_conn(:get, "/allow-credentials") |> put_origin("http://foo.com") |> c(Credentials)
-    assert resp_header(conn, "access-control-allow-origin") == "http://foo.com"
-    assert resp_header(conn, "access-control-allow-credentials") == "true"
-
-    conn = ac_conn(:get, "/dont-allow-credentials") |> put_origin("http://bar.com") |> c(Credentials)
-    assert resp_header(conn, "access-control-allow-origin") == "*"
-    refute resp_header(conn, "access-control-allow-credentials")
-  end
-
-  test "as a plug" do
-    conn = ac_conn(:get, "/foo") |> put_origin("foo.com") |> c(AsPlug)
-    assert conn.status == 200
-    assert conn.resp_body == "match"
-    assert resp_header(conn, "access-control-allow-origin") == "foo.com"
-
-    conn = ac_conn(:get, "/wildcard/anything") |> put_origin("foo.com") |> c(AsPlug)
-    assert conn.status == 200
-    assert conn.resp_body == "match"
-    assert resp_header(conn, "access-control-allow-origin") == "foo.com"
-
-    conn = ac_conn(:get, "/bar", [{"origin", "foo.com"}]) |> c(AsPlug)
-    assert conn.status == 200
-    assert conn.resp_body == "match"
-    refute resp_header(conn, "access-control-allow-origin")
-  end
-
-  # Helpers.
-
-  defp c(conn, plug),
-    do: plug.call(conn, [])
-
-  defp ac_conn(method, path, headers \\ []),
-    do: conn(method, path, "", headers: [{"content-type", "text/plain"}|headers])
-
-  defp put_origin(conn, origin),
-    do: put_req_header(conn, "origin", origin)
-
-  defp resp_header(conn, header) do
-    case get_resp_header(conn, header) do
-      []       -> nil
-      [header] -> header
-      headers  -> headers
-    end
-  end
+  defp put_origin(conn, origin), do: put_req_header(conn, "origin", origin)
 end

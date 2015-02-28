@@ -12,13 +12,12 @@ most fun thing in the world, are they?)*
 
 ## Features
 
-* Ignores requests without an `Origin` header (yay, performance!)
-* Handles preflight requests, including invalid requests where the request
-    method or the request headers are not allowed
-* Compiles CORS-enabled resources into functions based on pattern-matching in
-    order to take advantage of the optimizations made by the VM (yay, double
-    performance!)
-* Is compliant with the [CORS specification][cors-spec] defined by the W3C.
+* Is compliant with the [W3C CORS specification][cors-spec]
+* Provides both low-level CORS utilities as well as high-level facilities (like
+    a built-in plug and a CORS-focused router)
+* Handles preflight requests like a breeze
+* Never sends any CORS headers if the CORS request is not valid (smaller
+    requests, yay!)
 
 ## Installation
 
@@ -31,57 +30,13 @@ defp dependencies do
 end
 ```
 
-and then run `$ mix deps.get`. Corsica depends on [Plug][plug] too, but you have
-to explicitly list Plug as a dependency of your project (since the dependency is
-`optional: true` in Corsica).
+and then run `$ mix deps.get`. Corsica is a plug and thus depends on
+[Plug][plug] too, but you have to explicitly list Plug as a dependency of your
+project (since the dependency is `optional: true` in Corsica).
 
 ## Usage
 
-The `Corsica` module can be used both as a stand-alone plug:
-
-```elixir
-defmodule MyApp.Endpoint do
-  plug Corsica,
-    origins: ["http://foo.com"],
-    max_age: 600,
-    allow_headers: ~w(X-Header),
-    allow_methods: ~w(GET POST),
-    expose_headers: ~w(Content-Type)
-
-  plug Plug.Session
-  plug :router
-end
-```
-
-as well as a *plug generator*. Using it as a plug generator allows for finer
-control over the options and the headers of CORS responses; using the `Corsica`
-module in an arbitrary module automatically makes that module a plug that can be
-used in your application.
-
-```elixir
-defmodule MyApp.CORS do
-  use Corsica,
-    origins: "*",
-    max_age: 600,
-    allow_headers: ~w(X-My-Header)
-
-  resources ["/foo", "/bar"], allow_methods: ~w(PUT PATCH)
-
-  resources ["/users"],
-    allow_credentials: true,
-    allow_methods: ~w(HEAD GET POST PUT PATCH DELETE)
-end
-
-# MyApp.CORS can now be used as a regular plug.
-defmodule MyApp.Endpoint do
-  plug MyApp.CORS
-  plug :router
-end
-```
-
-This is only a short overview of what Corsica can do; for more detailed
-information and for a reference on the methods and options that can be used with
-Corsica, refer to the [online documentation][docs].
+TODO
 
 ## Contributing
 
