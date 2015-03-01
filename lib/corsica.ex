@@ -53,12 +53,38 @@ defmodule Corsica do
   `OPTIONS` requests) will often result in 404 errors since no route responds to
   an `OPTIONS` request.
 
+      defmodule MyApp.Endpoint do
+        plug Head
+        plug Corsica, max_age: 600, origins: "*", expose_headers: ~w(X-Foo)
+        plug MyApp.Router
+      end
+
   ## Using Corsica as a router generator
 
   When `Corsica` is used as a plug, it doesn't provide control over which urls
   are CORS-enabled or with which options. In order to do that, you can use
   `Corsica.Router`. See the documentation for `Corsica.Router` for more
   information.
+
+      defmodule MyApp.CORS do
+        use Corsica.Router
+
+        @opts [
+          max_age: 600,
+          allow_credentials: true,
+          allow_headers: ~w(X-Secret-Token),
+          origins: "*",
+        ]
+
+        resource "/public/*", @opts
+        resource "/*", Keyword.merge(@opts, origins: "http://foo.com")
+      end
+
+      defmodule MyApp.Endpoint do
+        plug Logger
+        plug MyApp.CORS
+        plug MyApp.Router
+      end
 
   ## Origins
 
@@ -232,7 +258,34 @@ defmodule Corsica do
 
   # Request handling
 
-  # assumes an Origin header, but nothing more.
+  @doc """
+  Sends a preflight response whether the request is valid or not.
+
+  This function assumes nothing about `conn`. If it's a valid CORS preflight
+  request with an allowed origin, CORS headers are set by calling
+  `put_cors_preflight_resp_headers/2` and the response is sent with status
+  `status` and body `body`. The `conn` is halted before being send.
+
+  Sending the response anyways makes sense since it the request is invalid, no
+  CORS headers will be added to the response and the browser will interpret that
+  as a non allowed preflight request.
+
+  To see what headers are sent with the response if the preflight request is
+  valid, look at `put_cors_preflight_resp_headers/2`.
+
+  ## Examples
+
+      defmodule MyRouter do
+        use Plug.Router
+        plug :match
+        plug :dispatch
+
+        options "/foo", do: Corsica.send_preflight_resp(conn, @cors_opts)
+        get "/foo", do: send_resp(conn, 200, "ok")
+      end
+
+  """
+  @spec send_preflight_resp(Conn.t, 100..599, binary, [Keyword.t]) :: Conn.t
   def send_preflight_resp(%Conn{} = conn, status \\ 200, body \\ "", opts) do
     conn
     |> put_cors_preflight_resp_headers(opts)
@@ -240,6 +293,29 @@ defmodule Corsica do
     |> send_resp(status, body)
   end
 
+  @doc """
+  Adds CORS response headers to a simple CORS request to `conn`.
+
+  This function assumes nothing about `conn`. If `conn` holds an invalid CORS
+  request or a request whose origin is not allowed, `conn` is returned
+  unchanged.
+
+  If the CORS request is valid, the following response headers are set:
+
+    * `Access-Control-Allow-Origin`
+
+  and the following headers are optionally set (if the corresponding option is
+  present):
+
+    * `Access-Control-Expose-Headers`
+    * `Access-Control-Allow-Credentials`
+
+  ## Examples
+
+      put_cors_simple_resp_headers(conn, origins: "*", allow_credentials: true)
+
+  """
+  @spec put_cors_simple_resp_headers(Conn.t, [Keyword.t]) :: Conn.t
   def put_cors_simple_resp_headers(%Conn{} = conn, opts) do
     opts = sanitize_opts(opts)
     if cors_req?(conn) && allowed_origin?(conn, opts) do
@@ -251,6 +327,35 @@ defmodule Corsica do
     end
   end
 
+  @doc """
+  Adds CORS response headers to a preflight request to `conn`.
+
+  This function assumes nothing about `conn`. If `conn` holds an invalid CORS
+  request or an invalid preflight request, then `conn` is returned unchanged.
+
+  If the request is a valid one, the following headers will be added to the
+  response:
+
+    * `Access-Control-Allow-Origin`
+    * `Access-Control-Allow-Methods`
+    * `Access-Control-Allow-Headers`
+
+  and the following headers will optionally be added (based on the value of the
+  corresponding options):
+
+    * `Access-Control-Allow-Credentials`
+    * `Access-Control-Max-Age`
+
+  ## Examples
+
+      put_cors_preflight_resp_headers conn, [
+        max_age: 86400,
+        allow_headers: ~w(X-Header),
+        origins: ~r(\w+\.foo\.com$)
+      ]
+
+  """
+  @spec put_cors_preflight_resp_headers(Conn.t, [Keyword.t]) :: Conn.t
   def put_cors_preflight_resp_headers(%Conn{} = conn, opts) do
     opts = sanitize_opts(opts)
     if allowed_origin?(conn, opts) and preflight_req?(conn) and allowed_preflight?(conn, opts) do
