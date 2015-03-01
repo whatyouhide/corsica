@@ -23,7 +23,7 @@ defmodule Corsica.Router do
         ]
 
         resource "/public/*", Keyword.merge(@opts, origins: "*")
-        resource "/", @opts
+        resource "/*", @opts
       end
 
   Now in your application's endpoint:

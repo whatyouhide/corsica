@@ -34,9 +34,45 @@ and then run `$ mix deps.get`. Corsica is a plug and thus depends on
 [Plug][plug] too, but you have to explicitly list Plug as a dependency of your
 project (since the dependency is `optional: true` in Corsica).
 
-## Usage
+## Overview
 
-TODO
+You can use Corsica both as a plug as well as a router generator. To use it as a
+plug, just plug it into your plug pipeline:
+
+```elixir
+defmodule MyApp.Endpoint do
+  plug Logger
+  plug Corsica, origins: "http://foo.com"
+  plug MyApp.Router
+end
+```
+
+To gain finer control over which resources are CORS-enabled and with what
+options, you can use the `Corsica.Router` module:
+
+```elixir
+defmodule MyApp.CORS do
+  use Corsica.Router
+
+  @opts [
+    origins: ["http://foo.com", "http://bar.com"],
+    allow_credentials: true,
+    max_age: 600,
+  ]
+
+  resource "/public/*", Keyword.merge(@opts, origins: "*")
+  resource "/*", @opts
+end
+
+defmodule MyApp.Endpoint do
+  plug Logger
+  plug MyApp.CORS
+  plug MyApp.Router
+end
+```
+
+This is only a brief overview of what Corsica can do. To find out more, head to
+the [online documentation][docs].
 
 ## Contributing
 
