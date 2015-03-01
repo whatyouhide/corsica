@@ -1,7 +1,7 @@
 defmodule Corsica.Mixfile do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.2.0"
 
   def project do
     [
@@ -22,7 +22,7 @@ defmodule Corsica.Mixfile do
 
   defp description do
     """
-    Plug and DSL for efficiently handling or responding to CORS requests
+    Plug-based swiss-army knife for CORS requests.
     """
   end
 
