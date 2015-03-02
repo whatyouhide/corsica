@@ -285,7 +285,7 @@ defmodule Corsica do
       end
 
   """
-  @spec send_preflight_resp(Conn.t, 100..599, binary, [Keyword.t]) :: Conn.t
+  @spec send_preflight_resp(Conn.t, 100..599, binary, Keyword.t) :: Conn.t
   def send_preflight_resp(%Conn{} = conn, status \\ 200, body \\ "", opts) do
     conn
     |> put_cors_preflight_resp_headers(opts)
@@ -315,7 +315,7 @@ defmodule Corsica do
       put_cors_simple_resp_headers(conn, origins: "*", allow_credentials: true)
 
   """
-  @spec put_cors_simple_resp_headers(Conn.t, [Keyword.t]) :: Conn.t
+  @spec put_cors_simple_resp_headers(Conn.t, Keyword.t) :: Conn.t
   def put_cors_simple_resp_headers(%Conn{} = conn, opts) do
     opts = sanitize_opts(opts)
     if cors_req?(conn) && allowed_origin?(conn, opts) do
@@ -355,7 +355,7 @@ defmodule Corsica do
       ]
 
   """
-  @spec put_cors_preflight_resp_headers(Conn.t, [Keyword.t]) :: Conn.t
+  @spec put_cors_preflight_resp_headers(Conn.t, Keyword.t) :: Conn.t
   def put_cors_preflight_resp_headers(%Conn{} = conn, opts) do
     opts = sanitize_opts(opts)
     if allowed_origin?(conn, opts) and preflight_req?(conn) and allowed_preflight?(conn, opts) do
