@@ -7,7 +7,7 @@ defmodule Corsica.Router do
   handle CORS requests. A generated router will handle a CORS request by:
 
     * responding to it if it's a preflight request (refer to
-      `Corsica.send_preflight_resp/4` for more information) od
+      `Corsica.send_preflight_resp/4` for more information) or
     * adding the right CORS headers to the connection if it's a valid CORS
       request.
 
@@ -56,11 +56,12 @@ defmodule Corsica.Router do
   just perform a couple of checks before calling either
   `Corsica.put_cors_simple_resp_headers/2` or `Corsica.send_preflight_resp/4`.
 
-  Note that if the request is a CORS preflight request, a response is
-  immediately sent to the client (whether the request is a valid one or not).
-  This behaviour, combined with the definition of an additional `OPTIONS` route
-  to `route`, makes `Corsica.Router` ideal to just put before any router in a
-  plug pipeline, letting it handle preflight requests by itself.
+  Note that if the request is a CORS preflight request (whether it's a valid one
+  or not), a response is immediately sent to the client (whether the request is
+  a valid one or not). This behaviour, combined with the definition of an
+  additional `OPTIONS` route to `route`, makes `Corsica.Router` ideal to just
+  put before any router in a plug pipeline, letting it handle preflight requests
+  by itself.
 
   The options given to `resource/2` are merged with the default options like it
   happens with the rest of the functions in the `Corsica` module.
@@ -74,6 +75,8 @@ defmodule Corsica.Router do
   defmacro resource(route, opts \\ []) do
     quote do
       route = unquote(route)
+
+      # Plug.Router wants this.
       if String.ends_with?(route, "*") do
         route = route <> "_"
       end
