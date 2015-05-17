@@ -1,4 +1,11 @@
 defmodule Corsica do
+  @default_opts [
+    origins: "*",
+    allow_methods: ~w(HEAD GET POST PUT PATCH DELETE),
+    allow_headers: ~w(),
+    allow_credentials: false,
+  ]
+
   @moduledoc """
   Plug-based swiss-army knife for CORS requests.
 
@@ -92,13 +99,28 @@ defmodule Corsica do
   `Corsica` is used or when the `Corsica` plug is plugged to a pipeline.
 
   `:origins` can be a single value or a list of values. `"*"` can only appear as
-  a single value. The default value is `"*"`. Origins can be specified either
-  as:
+  a single value. The default value is `#{inspect @default_opts[:origins]}`.
 
-    * strings - the allowed origin and the actual origin have to be identical
-    * regexes - the actual origin has to match the allowed regex functions with
-    * a type `(binary -> boolean)` - the function applied to the actual origin
-      has to return `true`
+  Origins can be specified either as:
+
+    * strings - the actual origin and the allowed origin have to be identical
+    * regexes - the actual origin has to match the allowed regex
+    * functions with a type `(binary -> boolean)` - the function applied to the
+      actual origin has to return `true`
+
+  ### The value of the access-control-allow-origin header
+
+  The `:origins` option directly influences the value of the
+  `access-control-allow-origin` header. When `:origins` is `"*"`, the
+  `access-control-allow-origin` header is set to `*` as well. If the request's
+  origin is allowed an `:origins` is something different than `"*"`, then you
+  won't see that value as the value of the `access-control-allow-origin` header:
+  the value of this header will be the request's origin (which is *mirrored*).
+  This behaviour is intentional: it's compliant with the W3C CORS specification
+  and at the same time it provides the advantage of "hiding" all the allowed
+  origins from the client (which only sees its origin as an allowed origin).
+
+  ## Vary header
 
   If `:origins` is a list with more than one value and the request origin
   matches, then a `Vary: Origin` header is added to the response.
@@ -111,29 +133,26 @@ defmodule Corsica do
 
     * `:allow_headers` - is a list of headers (as binaries). Sets the value of
       the `access-control-allow-headers` header used with preflight requests.
-      Defaults to `[]` (no headers are allowed).
+      Defaults to `#{inspect @default_opts[:allow_headers]}` (no headers are
+      allowed).
     * `:allow_methods` - is a list of HTTP methods (as binaries). Sets the value
       of the `access-control-allow-methods` header used with preflight requests.
-      Defaults to `["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"]`.
+      Defaults to `#{inspect @default_opts[:allow_methods]}`.
     * `:allow_credentials` - is a boolean. If `true`, sends the
       `access-control-allow-credentials` with value `true`. If `false`, prevents
       that header from being sent at all. If `:origins` is set to `"*"` and
-      `:allow_credentials` is set to `true`, than the value of the
+      `:allow_credentials` is set to `true`, then the value of the
       `access-control-allow-origin` header will always be the value of the
       `origin` request header (as per the W3C CORS specification) and not `*`.
+      Defaults to `#{inspect @default_opts[:allow_credentials]}`.
     * `:expose_headers` - is a list of headers (as binaries). Sets the value of
-      the `access-control-expose-headers` response header. This option doesn't
-      have a default value; if it's not provided, the
+      the `access-control-expose-headers` response header. This option *does
+      not* have a default value; if it's not provided, the
       `access-control-expose-headers` header is not sent at all.
     * `:max_age` - is an integer or a binary. Sets the value of the
       `access-control-max-age` header used with preflight requests. This option
-      doesn't have a default value; if it's not provided, the
+      *does not* have a default value; if it's not provided, the
       `access-control-max-age` header is not sent at all.
-
-  When used as a plug, Corsica supports the additional `:resources` options,
-  which is a list of resources exactly like the ones passed to the
-  `Corsica.DSL.resources/2` macro. By default, this option is not present,
-  meaning that all resources are CORS-enabled.
 
   ## Responding to preflight requests
 
@@ -141,8 +160,7 @@ defmodule Corsica do
   request method and valid request headers), Corsica directly sends a response
   to that request instead of just adding headers to the connection (so that a
   possible plug pipeline can continue). To do this, Corsica **halts the
-  connection** (through `Plug.Conn.halt/1`) and **sends a 200 OK response** with
-  a body of `""`.
+  connection** (through `Plug.Conn.halt/1`) and **sends a response**.
 
   """
 
@@ -186,12 +204,6 @@ defmodule Corsica do
   import Plug.Conn
   alias Plug.Conn
 
-  @default_opts [
-    origins: "*",
-    allow_methods: ~w(HEAD GET POST PUT PATCH DELETE),
-    allow_headers: ~w(),
-    allow_credentials: false,
-  ]
 
   @behaviour Plug
 
