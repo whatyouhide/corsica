@@ -233,22 +233,24 @@ defmodule Corsica do
   @doc """
   Checks whether a given connection holds a CORS request.
 
-  It doesn't check if the CORS request is valid: it just checks that it's a CORS
-  request. A request is a CORS request if and only if it has an `Origin` request
+  This function doesn't check if the CORS request is a *valid* CORS request: it
+  just checks that it's a CORS request, that is, it has an `Origin` request
   header.
   """
   @spec cors_req?(Conn.t) :: boolean
-  def cors_req?(%Conn{} = conn),
-    do: get_req_header(conn, "origin") != []
+  def cors_req?(%Conn{} = conn), do: get_req_header(conn, "origin") != []
 
   @doc """
-  Checks whether a given connection holds a CORS preflight request.
+  Checks whether a given connection holds a preflight CORS request.
 
-  Like `cors_req?/1`, it doesn't check that the preflight request is valid:
-  it just checks that it's a preflight request. A CORS request is considered to
-  be a preflight request if and only if it is an `OPTIONS` request and it has an
-  `Access-Control-Request-Method` request header. If a request is a valid
-  preflight request, it's a valid CORS request too.
+  This function doesn't check that the preflight request is a *valid* CORS
+  request: it just checks that it's a preflight request. A request is considered
+  to be a CORS preflight request if and only if its request method is `OPTIONS`
+  and it has a `Access-Control-Request-Method` request header.
+
+  Note that if a request is a valid preflight request, that makes it a valid
+  CORS request as well. You can thus call just `preflight_req?/1` instead of
+  `preflight_req?/1` and `cors_req?/1`.
   """
   @spec preflight_req?(Conn.t) :: boolean
   def preflight_req?(%Conn{method: "OPTIONS"} = conn),
@@ -259,19 +261,22 @@ defmodule Corsica do
   # Request handling
 
   @doc """
-  Sends a preflight response whether the request is valid or not.
+  Sends a CORS preflight response regardless of the request being a valid CORS
+  request or not.
 
   This function assumes nothing about `conn`. If it's a valid CORS preflight
   request with an allowed origin, CORS headers are set by calling
-  `put_cors_preflight_resp_headers/2` and the response is sent with status
-  `status` and body `body`. The `conn` is halted before being send.
+  `put_cors_preflight_resp_headers/2` and the response **is sent** with status
+  `status` and body `body`. `conn` is **halted** before being sent.
 
-  Sending the response anyways makes sense since it the request is invalid, no
-  CORS headers will be added to the response and the browser will interpret that
-  as a non allowed preflight request.
+  The response is always sent because if the request is not a valid CORS
+  request, then no CORS headers will be added to the response. This behaviour
+  will be interpreted by the browser as a non-allowed preflight request, as
+  expected.
 
-  To see what headers are sent with the response if the preflight request is
-  valid, look at `put_cors_preflight_resp_headers/2`.
+  For more information on what headers are sent with the response if the
+  preflight request is valid, look at the documentation for
+  `put_cors_preflight_resp_headers/2`.
 
   ## Examples
 
@@ -298,9 +303,10 @@ defmodule Corsica do
 
   This function assumes nothing about `conn`. If `conn` holds an invalid CORS
   request or a request whose origin is not allowed, `conn` is returned
-  unchanged.
+  unchanged; the absence of CORS headers will be interpreted as an invalid CORS
+  response by the browser.
 
-  If the CORS request is valid, the following response headers are set:
+  If the CORS request is valid, the following response headers are always set:
 
     * `Access-Control-Allow-Origin`
 
@@ -331,10 +337,12 @@ defmodule Corsica do
   Adds CORS response headers to a preflight request to `conn`.
 
   This function assumes nothing about `conn`. If `conn` holds an invalid CORS
-  request or an invalid preflight request, then `conn` is returned unchanged.
+  request or an invalid preflight request, then `conn` is returned unchanged;
+  the absence of CORS headers will be interpreted as an invalid CORS response by
+  the browser.
 
-  If the request is a valid one, the following headers will be added to the
-  response:
+  If the request is a valid one, the following headers will always be added to
+  the response:
 
     * `Access-Control-Allow-Origin`
     * `Access-Control-Allow-Methods`
@@ -351,7 +359,7 @@ defmodule Corsica do
       put_cors_preflight_resp_headers conn, [
         max_age: 86400,
         allow_headers: ~w(X-Header),
-        origins: ~r(\w+\.foo\.com$)
+        origins: ~r/\w+\.foo\.com$/
       ]
 
   """
@@ -388,19 +396,20 @@ defmodule Corsica do
     actual_origin   = conn |> get_req_header("origin") |> hd
     allowed_origins = Keyword.fetch!(opts, :origins)
 
-    value = if allowed_origins == "*" and not opts[:allow_credentials] do
-      "*"
-    else
-      actual_origin
-    end
+    # '*' cannot be used as the value of the `Access-Control-Allow-Origins`
+    # header if `Access-Control-Allow-Credentials` is true.
+    value =
+      if allowed_origins == "*" and not opts[:allow_credentials] do
+        "*"
+      else
+        actual_origin
+      end
 
     put_resp_header(conn, "access-control-allow-origin", value)
   end
 
   # Only update the Vary header if the origin is not a binary (it could be a
   # regex or a function) or if there's a list of more than one origins.
-  defp update_vary_header(conn, "*"),
-    do: conn
   defp update_vary_header(conn, origin) when is_binary(origin),
     do: conn
   defp update_vary_header(conn, [origin]) when is_binary(origin),
