@@ -37,9 +37,12 @@ defmodule Corsica.Router do
   """
 
   @doc false
-  defmacro __using__([]) do
+  defmacro __using__(opts) do
     quote do
       import unquote(__MODULE__), only: [resource: 2]
+
+      @corsica_router_opts unquote(opts)
+
       use Plug.Router
       plug :match
       plug :dispatch

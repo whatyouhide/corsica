@@ -204,8 +204,20 @@ defmodule Corsica do
   import Plug.Conn
   alias Plug.Conn
 
+  require Logger
 
   @behaviour Plug
+
+  @log_level Application.get_env(:corsica, :log_level, false)
+
+  defmacrop log(msg) do
+    if @log_level do
+      quote do
+        msg = "[Corsica] " <> unquote(msg)
+        Logger.unquote(@log_level)(msg)
+      end
+    end
+  end
 
   # Plug callbacks.
 
@@ -304,10 +316,14 @@ defmodule Corsica do
   """
   @spec send_preflight_resp(Conn.t, 100..599, binary, Keyword.t) :: Conn.t
   def send_preflight_resp(%Conn{} = conn, status \\ 200, body \\ "", opts) do
-    conn
-    |> put_cors_preflight_resp_headers(opts)
-    |> halt
-    |> send_resp(status, body)
+    conn =
+      conn
+      |> put_cors_preflight_resp_headers(opts)
+      |> halt
+
+    log "Sending preflight response"
+
+    send_resp(conn, status, body)
   end
 
   @doc """
@@ -337,10 +353,12 @@ defmodule Corsica do
   def put_cors_simple_resp_headers(%Conn{} = conn, opts) do
     opts = sanitize_opts(opts)
     if cors_req?(conn) && allowed_origin?(conn, opts) do
+      log "Origin '#{origin(conn)}' allowed, adding access-control-* headers"
       conn
       |> put_common_headers(opts)
       |> put_expose_headers_header(opts)
     else
+      log "Origin '#{origin(conn)}' not allowed, no access-control-* headers being set"
       conn
     end
   end
@@ -378,13 +396,16 @@ defmodule Corsica do
   @spec put_cors_preflight_resp_headers(Conn.t, Keyword.t) :: Conn.t
   def put_cors_preflight_resp_headers(%Conn{} = conn, opts) do
     opts = sanitize_opts(opts)
+
     if allowed_origin?(conn, opts) and preflight_req?(conn) and allowed_preflight?(conn, opts) do
+      log "Allowed preflight request from origin '#{origin(conn)}', adding access-control-* headers"
       conn
       |> put_common_headers(opts)
       |> put_allow_methods_header(opts)
       |> put_allow_headers_header(opts)
       |> put_max_age_header(opts)
     else
+      log "Request is not a valid CORS preflight request, no access-control-* headers being added"
       conn
     end
   end
@@ -453,6 +474,15 @@ defmodule Corsica do
       put_resp_header(conn, "access-control-expose-headers", expose_headers)
     else
       conn
+    end
+  end
+
+  @doc false
+  def origin(conn) do
+    if (header = get_req_header(conn, "origin")) == [] do
+      nil
+    else
+      hd(header)
     end
   end
 

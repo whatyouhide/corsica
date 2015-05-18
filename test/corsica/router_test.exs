@@ -26,7 +26,6 @@ defmodule Corsica.RouterTest do
     conn = conn(:get, "/foo") |> put_origin("foo.com") |> Pipeline.call([])
     assert conn.resp_body == "match"
     assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
-
   end
 
   test "/bar" do
