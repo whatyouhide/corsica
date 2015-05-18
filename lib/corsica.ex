@@ -162,6 +162,20 @@ defmodule Corsica do
   possible plug pipeline can continue). To do this, Corsica **halts the
   connection** (through `Plug.Conn.halt/1`) and **sends a response**.
 
+  ## Logging
+
+  Corsica supports basic logging functionalities; it can log whether a CORS
+  request is a valid one, what CORS headers are added to a response and similar
+  information. By default logging is disabled. This can be changed by changing
+  the value of the `:log_level` option for the `:corsica` application. For
+  example, in `config/config.exs`:
+
+      config :corsica, log_level: :info
+
+  The value of the `:log_level` option is used, as the name implies, as the
+  logging level. With the example above, Corsica will log everything at the
+  `info` level.
+
   """
 
   # Here are some nice (and apparently overlooked!) quotes from the W3C CORS
