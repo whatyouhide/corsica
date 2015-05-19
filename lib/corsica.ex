@@ -491,12 +491,10 @@ defmodule Corsica do
     end
   end
 
-  @doc false
-  def origin(conn) do
-    if (header = get_req_header(conn, "origin")) == [] do
-      nil
-    else
-      hd(header)
+  defp origin(conn) do
+    case get_req_header(conn, "origin") do
+      []         -> nil
+      [origin|_] -> origin
     end
   end
 
