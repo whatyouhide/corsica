@@ -136,19 +136,6 @@ defmodule CorsicaTest do
     assert get_resp_header(new_conn, "vary") == ["origin", "content-length"]
   end
 
-  # test "put_cors_simple_resp_headers/2: logging can be enabled" do
-  #   Application.put_env :corsica, :log_level, :debug
-
-  #   conn = conn(:get, "/foo") |> put_origin("http://foo.com")
-
-  #   expected = """
-  #   Origin 'http://foo.com' is not allowed, no access-control-* headers being set
-  #   """
-  #   assert ExUnit.CaptureIO.capture_io(fn ->
-  #     put_cors_simple_resp_headers(conn, origins: "http://bar.com")
-  #   end) == expected
-  # end
-
   test "put_cors_preflight_resp_headers/2: access-control-allow-methods" do
     conn = conn(:options, "/")
             |> put_origin("http://example.com")
