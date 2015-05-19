@@ -362,14 +362,19 @@ defmodule Corsica do
   @spec put_cors_simple_resp_headers(Conn.t, Keyword.t) :: Conn.t
   def put_cors_simple_resp_headers(%Conn{} = conn, opts) do
     opts = sanitize_opts(opts)
-    if cors_req?(conn) && allowed_origin?(conn, opts) do
-      log "Origin '#{origin(conn)}' allowed, adding access-control-* headers"
-      conn
-      |> put_common_headers(opts)
-      |> put_expose_headers_header(opts)
-    else
-      log "Origin '#{origin(conn)}' not allowed, no access-control-* headers being set"
-      conn
+
+    cond do
+      not cors_req?(conn) ->
+        log "Request is not a CORS request"
+        conn
+      not allowed_origin?(conn, opts) ->
+        log "Simple CORS request from Origin '#{origin(conn)}' is not allowed"
+        conn
+      true ->
+        log "Simple CORS request from Origin '#{origin(conn)}' is allowed"
+        conn
+        |> put_common_headers(opts)
+        |> put_expose_headers_header(opts)
     end
   end
 
@@ -407,16 +412,23 @@ defmodule Corsica do
   def put_cors_preflight_resp_headers(%Conn{} = conn, opts) do
     opts = sanitize_opts(opts)
 
-    if allowed_origin?(conn, opts) and preflight_req?(conn) and allowed_preflight?(conn, opts) do
-      log "Allowed preflight request from origin '#{origin(conn)}', adding access-control-* headers"
-      conn
-      |> put_common_headers(opts)
-      |> put_allow_methods_header(opts)
-      |> put_allow_headers_header(opts)
-      |> put_max_age_header(opts)
-    else
-      log "Request is not a valid CORS preflight request, no access-control-* headers being added"
-      conn
+    cond do
+      not preflight_req?(conn) ->
+        log "Request is not a preflight CORS request"
+        conn
+      not allowed_origin?(conn, opts) ->
+        log "Origin '#{origin(conn)}' not allowed, preflight CORS request is not valid"
+        conn
+      not allowed_preflight?(conn, opts) ->
+        log "Preflight CORS request from Origin '#{origin(conn)}' is not allowed"
+        conn
+      true ->
+        log "Preflight CORS request from Origin '#{origin(conn)}' is allowed"
+        conn
+        |> put_common_headers(opts)
+        |> put_allow_methods_header(opts)
+        |> put_allow_headers_header(opts)
+        |> put_max_age_header(opts)
     end
   end
 

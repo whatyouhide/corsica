@@ -169,6 +169,11 @@ defmodule CorsicaTest do
     assert get_resp_header(conn, "access-control-max-age") == ["400"]
   end
 
+  test "put_cors_preflight_resp_headers/2: does nothing to non-CORS requests" do
+    conn = conn(:options, "/")
+    assert conn == put_cors_preflight_resp_headers(conn, max_age: 1)
+  end
+
   test "send_preflight_resp/4: valid preflight request" do
     conn = conn(:options, "/")
             |> put_origin("http://example.com")
