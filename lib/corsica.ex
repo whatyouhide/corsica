@@ -330,14 +330,10 @@ defmodule Corsica do
   """
   @spec send_preflight_resp(Conn.t, 100..599, binary, Keyword.t) :: Conn.t
   def send_preflight_resp(%Conn{} = conn, status \\ 200, body \\ "", opts) do
-    conn =
-      conn
-      |> put_cors_preflight_resp_headers(opts)
-      |> halt
-
-    log "Sending preflight response"
-
-    send_resp(conn, status, body)
+    conn
+    |> put_cors_preflight_resp_headers(opts)
+    |> halt
+    |> send_resp(status, body)
   end
 
   @doc """
