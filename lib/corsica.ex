@@ -499,7 +499,10 @@ defmodule Corsica do
     end
   end
 
-  defp origin(conn) do
+  # Made public since this function is only called by macros as of now, and so
+  # an 'unused function' warning is issued if the macros produce no code.
+  @doc false
+  def origin(conn) do
     case get_req_header(conn, "origin") do
       []         -> nil
       [origin|_] -> origin
