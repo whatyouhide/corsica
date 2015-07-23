@@ -24,21 +24,15 @@ defmodule Corsica do
   Corsica is compliant with the [W3C CORS
   specification](http://www.w3.org/TR/cors/). As per this specification, Corsica
   doesn't put any CORS response headers in a connection that holds an invalid
-  CORS request. "Invalid CORS request" can mean that a request doesn't have an
-  `Origin` hedaer (so it's not a CORS request at all) or that it's a CORS
-  request but:
-
-    * the `Origin` request header doesn't match any of the allowed origins
-    * the request is a preflight request but it requests to use a method or
-      some headers that are not allowed (via the `Access-Control-Request-Method`
-      and `Access-Control-Request-Headers` headers)
+  CORS request. To know what "invalid" CORS request means, have a look at the
+  "Validity of CORS requests" section below.
 
   When some options that are not mandatory and have no default value (such
   `:max_age`) are not present, the relative header will often not be sent at
   all. This is compliant with the specification and at the same time it reduces
-  (even if by a handful of bytes) the size of the request.
+  (even if by a handful of bytes) the size of the response.
 
-  Follows a list of all the *supported* response headers:
+  Follows a list of all the supported response headers:
 
     * `Access-Control-Allow-Origin`
     * `Access-Control-Allow-Methods`
@@ -57,7 +51,7 @@ defmodule Corsica do
   pipeline **before** any router: routers like `Plug.Router` (or
   `Phoenix.Router`) respond to HTTP verbs as well as request urls, so if
   `Corsica` is plugged after a router then preflight requests (which are
-  `OPTIONS` requests) will often result in 404 errors since no route responds to
+  `OPTIONS` requests) will often result in 404 errors since no route responds
   an `OPTIONS` request.
 
       defmodule MyApp.Endpoint do
@@ -161,6 +155,16 @@ defmodule Corsica do
   to that request instead of just adding headers to the connection (so that a
   possible plug pipeline can continue). To do this, Corsica **halts the
   connection** (through `Plug.Conn.halt/1`) and **sends a response**.
+
+  ## Validity of CORS requests
+
+  "Invalid CORS request" can mean that a request doesn't have an `Origin` header
+  (so it's not a CORS request at all) or that it's a CORS request but:
+
+    * the `Origin` request header doesn't match any of the allowed origins
+    * the request is a preflight request but it requests to use a method or
+      some headers that are not allowed (via the `Access-Control-Request-Method`
+      and `Access-Control-Request-Headers` headers)
 
   ## Logging
 
