@@ -11,19 +11,22 @@ defmodule Corsica.Router do
     * adding the right CORS headers to the connection if it's a valid CORS
       request.
 
+  When a module calls `use Corsica.Router`, the same options that can be passed
+  to the `Corsica` router are accepted. Look at the documentation for the
+  `Corsica` module to find out more.
+
   ## Examples
 
       defmodule MyApp.CORS do
-        use Corsica.Router
-
-        @opts [
+        use Corsica.Router,
           origins: ["http://foo.com", "http://bar.com"],
           allow_credentials: true,
           max_age: 600,
-        ]
 
-        resource "/public/*", Keyword.merge(@opts, origins: "*")
-        resource "/*", @opts
+        resource "/*"
+
+        # We can override single settings as well.
+        resource "/public/*", allow_credentials: false
       end
 
   Now in your application's endpoint:
@@ -39,7 +42,7 @@ defmodule Corsica.Router do
   @doc false
   defmacro __using__(opts) do
     quote do
-      import unquote(__MODULE__), only: [resource: 2]
+      import unquote(__MODULE__)
 
       @corsica_router_opts unquote(opts)
 
@@ -76,8 +79,9 @@ defmodule Corsica.Router do
 
   """
   defmacro resource(route, opts \\ []) do
-    quote do
-      route = unquote(route)
+    quote bind_quoted: [opts: Macro.escape(opts), route: route] do
+      global_opts = Module.get_attribute(__MODULE__, :corsica_router_opts)
+      opts = Keyword.merge(global_opts, opts)
 
       # Plug.Router wants this.
       if String.ends_with?(route, "*") do

@@ -3,14 +3,12 @@ defmodule Corsica.RouterTest do
   use Plug.Test
 
   defmodule MyRouter do
-    use Corsica.Router
+    use Corsica.Router, origins: "*", max_age: 600
 
-    @opts [origins: "*", max_age: 600]
-
-    resource "/foo", @opts
-    resource "/bar", Keyword.merge(@opts, origins: ~r/\.com$/)
-    resource "/wild/*", @opts
-    resource "/preflight", Keyword.merge(@opts, allow_methods: ~w(PUT))
+    resource "/foo"
+    resource "/bar", origins: ~r/\.com$/
+    resource "/wild/*"
+    resource "/preflight", allow_methods: ~w(PUT)
   end
 
   defmodule Pipeline do
