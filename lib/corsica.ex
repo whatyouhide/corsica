@@ -314,6 +314,12 @@ defmodule Corsica do
   preflight request is valid, look at the documentation for
   `put_cors_preflight_resp_headers/2`.
 
+  ## Options
+
+  This function accepts the same options accepted by the `Corsica` plug
+  (described in the documentation for the `Corsica` module), including `:log`
+  for logging.
+
   ## Examples
 
       defmodule MyRouter do
@@ -350,6 +356,12 @@ defmodule Corsica do
 
     * `Access-Control-Expose-Headers`
     * `Access-Control-Allow-Credentials`
+
+  ## Options
+
+  This function accepts the same options accepted by the `Corsica` plug
+  (described in the documentation for the `Corsica` module), including `:log`
+  for logging.
 
   ## Examples
 
@@ -394,6 +406,12 @@ defmodule Corsica do
 
     * `Access-Control-Allow-Credentials`
     * `Access-Control-Max-Age`
+
+  ## Options
+
+  This function accepts the same options accepted by the `Corsica` plug
+  (described in the documentation for the `Corsica` module), including `:log`
+  for logging.
 
   ## Examples
 
