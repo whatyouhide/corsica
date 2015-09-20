@@ -68,17 +68,14 @@ defmodule Corsica do
   information.
 
       defmodule MyApp.CORS do
-        use Corsica.Router
-
-        @opts [
+        use Corsica.Router,
           max_age: 600,
           allow_credentials: true,
           allow_headers: ~w(X-Secret-Token),
           origins: "*",
-        ]
 
-        resource "/public/*", @opts
-        resource "/*", Keyword.merge(@opts, origins: "http://foo.com")
+        resource "/public/*"
+        resource "/*", origins: "http://foo.com"
       end
 
       defmodule MyApp.Endpoint do
