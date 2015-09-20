@@ -29,55 +29,55 @@ defmodule CorsicaTest do
   end
 
   test "sanitize_opts/1" do
-    assert sanitize_opts(max_age: 600)[:max_age] == "600"
-    assert sanitize_opts([])[:max_age] == nil
-    assert sanitize_opts(allow_methods: ~w(get pOSt))[:allow_methods] == ~w(GET POST)
-    assert sanitize_opts(allow_headers: ~w(X-Header))[:allow_headers] == ~w(x-header)
-    assert sanitize_opts(expose_headers: ~w(X-Foo X-Bar))[:expose_headers] == "X-Foo, X-Bar"
+    assert elem(sanitize_opts(max_age: 600), 1)[:max_age] == "600"
+    assert elem(sanitize_opts([]), 1)[:max_age] == nil
+    assert elem(sanitize_opts(allow_methods: ~w(get pOSt)), 1)[:allow_methods] == ~w(GET POST)
+    assert elem(sanitize_opts(allow_headers: ~w(X-Header)), 1)[:allow_headers] == ~w(x-header)
+    assert elem(sanitize_opts(expose_headers: ~w(X-Foo X-Bar)), 1)[:expose_headers] == "X-Foo, X-Bar"
   end
 
   test "allowed_origin?/2: allowed origins" do
     conn = conn(:get, "/") |> put_origin("http://foo.com")
-    assert allowed_origin?(conn, origins: "*")
-    assert allowed_origin?(conn, origins: "http://foo.com")
-    assert allowed_origin?(conn, origins: ["http://foo.com"])
-    assert allowed_origin?(conn, origins: ["http://bar.com", "http://foo.com"])
-    assert allowed_origin?(conn, origins: ~r/(foo|bar)\.com$/)
-    assert allowed_origin?(conn, origins: &(&1 =~ "foo.com"))
+    assert allowed_origin?(conn, sanitize_opts(origins: "*"))
+    assert allowed_origin?(conn, sanitize_opts(origins: "http://foo.com"))
+    assert allowed_origin?(conn, sanitize_opts(origins: ["http://foo.com"]))
+    assert allowed_origin?(conn, sanitize_opts(origins: ["http://bar.com", "http://foo.com"]))
+    assert allowed_origin?(conn, sanitize_opts(origins: ~r/(foo|bar)\.com$/))
+    assert allowed_origin?(conn, sanitize_opts(origins: &(&1 =~ "foo.com")))
   end
 
   test "allowed_origin?/2: non-allowed origins" do
     conn = conn(:get, "/") |> put_origin("http://foo.com")
-    refute allowed_origin?(conn, origins: "foo.com")
-    refute allowed_origin?(conn, origins: ["http://foo.org"])
-    refute allowed_origin?(conn, origins: ["http://bar.com", "http://baz.com"])
-    refute allowed_origin?(conn, origins: ~r/(foo|bar)\.org$/)
-    refute allowed_origin?(conn, origins: &(&1 == String.upcase(&1)))
+    refute allowed_origin?(conn, sanitize_opts(origins: "foo.com"))
+    refute allowed_origin?(conn, sanitize_opts(origins: ["http://foo.org"]))
+    refute allowed_origin?(conn, sanitize_opts(origins: ["http://bar.com", "http://baz.com"]))
+    refute allowed_origin?(conn, sanitize_opts(origins: ~r/(foo|bar)\.org$/))
+    refute allowed_origin?(conn, sanitize_opts(origins: &(&1 == String.upcase(&1))))
   end
 
   test "allowed_preflight?/2: allowed requests" do
     conn = conn(:get, "/")
             |> put_origin("http://foo.com")
             |> put_req_header("access-control-request-method", "PUT")
-    assert allowed_preflight?(conn, allow_methods: ~w(PUT PATCH))
-    assert allowed_preflight?(conn, allow_methods: ~w(put))
-    assert allowed_preflight?(conn, allow_methods: ~w(PUT), allow_headers: ~w(X-Foo))
+    assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT PATCH)))
+    assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(put)))
+    assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT), allow_headers: ~w(X-Foo)))
 
     conn = conn |> put_req_header("access-control-request-headers", "X-Foo, X-Bar")
-    assert allowed_preflight?(conn, allow_methods: ~w(PUT), allow_headers: ~w(X-Bar x-foo))
+    assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT), allow_headers: ~w(X-Bar x-foo)))
   end
 
   test "allowed_preflight?/2: non-allowed requests" do
     conn = conn(:get, "/")
             |> put_origin("http://foo.com")
             |> put_req_header("access-control-request-method", "OPTIONS")
-    refute allowed_preflight?(conn, allow_methods: ~w(PUT PATCH))
-    refute allowed_preflight?(conn, allow_methods: ~w(put))
-    refute allowed_preflight?(conn, allow_methods: ~w(PUT), allow_headers: ~w(X-Foo))
+    refute allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT PATCH)))
+    refute allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(put)))
+    refute allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT), allow_headers: ~w(X-Foo)))
 
     conn = conn |> put_req_header("access-control-request-headers", "X-Foo, X-Bar")
-    refute allowed_preflight?(conn, allow_methods: ~w(OPTIONS), allow_headers: ~w(X-Bar))
-    refute allowed_preflight?(conn, allow_methods: ~w(OPTIONS), allow_headers: ~w(x-bar))
+    refute allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(OPTIONS), allow_headers: ~w(X-Bar)))
+    refute allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(OPTIONS), allow_headers: ~w(x-bar)))
   end
 
   test "put_cors_simple_resp_headers/2: access-control-allow-origin" do
