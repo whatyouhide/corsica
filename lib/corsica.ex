@@ -575,7 +575,7 @@ defmodule Corsica do
       |> Enum.find(&(not &1 in opts[:allow_headers]))
 
     if non_allowed_header do
-      log opts, "Invalid preflight CORS reuqest because the header #{inspect non_allowed_header} is not in :allow_headers"
+      log opts, "Invalid preflight CORS request because the header #{inspect non_allowed_header} is not in :allow_headers"
     end
 
     # If there's no non_allowed_header, then they're all allowed.
