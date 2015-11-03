@@ -25,7 +25,7 @@ Just add the `:corsica` dependency to your project's `mix.exs`:
 
 ```elixir
 defp dependencies do
-  [{:plug, "~> 1.1"},
+  [{:plug, "~> 1.0"},
    {:corsica, "~> 0.4"}]
 end
 ```
