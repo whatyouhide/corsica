@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.1
+
+* Fix a typo in a logged message.
+
 ## v0.4.0
 
 * Logging is now more detailed (e.g., it logs what header is missing from
