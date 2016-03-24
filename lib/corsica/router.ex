@@ -8,12 +8,13 @@ defmodule Corsica.Router do
 
     * responding to it if it's a preflight request (refer to
       `Corsica.send_preflight_resp/4` for more information) or
-    * adding the right CORS headers to the connection if it's a valid CORS
-      request.
+    * adding the right CORS headers to the `Plug.Conn` connection if it's a
+      valid CORS request.
 
-  When a module calls `use Corsica.Router`, the same options that can be passed
-  to the `Corsica` router are accepted. Look at the documentation for the
-  `Corsica` module to find out more.
+  When a module calls `use Corsica.Router`, it can pass the same options that
+  can be passed to the `Corsica` plug to the `use` call. Look at the
+  documentation for the `Corsica` module for more information about these
+  options.
 
   ## Examples
 
@@ -37,6 +38,9 @@ defmodule Corsica.Router do
         plug MyApp.Router
       end
 
+  Note that a `Corsica.Router` router will always define a match-all route after
+  the `resource` routes; this match-all route will simply return the connection
+  unchanged, effectively continuing with the plug pipeline.
   """
 
   @doc false
@@ -77,8 +81,8 @@ defmodule Corsica.Router do
 
   ## Examples
 
-      resources "/foo", origins: "*"
-      resources "/wildcards/are/ok/*", max_age: 600
+      resource "/foo", origins: "*"
+      resource "/wildcards/are/ok/*", max_age: 600
 
   """
   defmacro resource(route, opts \\ []) do

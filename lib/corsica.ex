@@ -319,13 +319,18 @@ defmodule Corsica do
 
   ## Examples
 
+  This function could be used to manually build a plug that responds to
+  preflight requests. For example:
+
       defmodule MyRouter do
         use Plug.Router
         plug :match
         plug :dispatch
 
-        options "/foo", do: Corsica.send_preflight_resp(conn, @cors_opts)
-        get "/foo", do: send_resp(conn, 200, "ok")
+        options "/foo",
+          do: Corsica.send_preflight_resp(conn, origins: "*")
+        get "/foo",
+          do: send_resp(conn, 200, "ok")
       end
 
   """
@@ -342,17 +347,19 @@ defmodule Corsica do
   This function assumes nothing about `conn`. If `conn` holds an invalid CORS
   request or a request whose origin is not allowed, `conn` is returned
   unchanged; the absence of CORS headers will be interpreted as an invalid CORS
-  response by the browser.
+  response by the browser (according to the W3C spec).
 
-  If the CORS request is valid, the following response headers are always set:
+  If the CORS request is valid, the following response headers are set:
 
     * `Access-Control-Allow-Origin`
 
   and the following headers are optionally set (if the corresponding option is
   present):
 
-    * `Access-Control-Expose-Headers`
-    * `Access-Control-Allow-Credentials`
+    * `Access-Control-Expose-Headers` (if the `:expose_headers` option is
+      present)
+    * `Access-Control-Allow-Credentials` (if the `:allow_credentials` option is
+      `true`)
 
   ## Options
 
@@ -362,7 +369,9 @@ defmodule Corsica do
 
   ## Examples
 
-      put_cors_simple_resp_headers(conn, origins: "*", allow_credentials: true)
+      conn
+      |> put_cors_simple_resp_headers(origins: "*", allow_credentials: true)
+      |> send_resp(200, "Hello!")
 
   """
   def put_cors_simple_resp_headers(%Conn{} = conn, opts) do
@@ -389,9 +398,9 @@ defmodule Corsica do
   This function assumes nothing about `conn`. If `conn` holds an invalid CORS
   request or an invalid preflight request, then `conn` is returned unchanged;
   the absence of CORS headers will be interpreted as an invalid CORS response by
-  the browser.
+  the browser (according to the W3C spec).
 
-  If the request is a valid one, the following headers will always be added to
+  If the request is a valid CORS request, the following headers will be added to
   the response:
 
     * `Access-Control-Allow-Origin`
@@ -401,8 +410,9 @@ defmodule Corsica do
   and the following headers will optionally be added (based on the value of the
   corresponding options):
 
-    * `Access-Control-Allow-Credentials`
-    * `Access-Control-Max-Age`
+    * `Access-Control-Allow-Credentials` (if the `:allow_credentials` option is
+      `true`)
+    * `Access-Control-Max-Age` (if the `:max_age` option is present)
 
   ## Options
 
