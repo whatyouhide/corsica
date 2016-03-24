@@ -53,5 +53,11 @@ defmodule Corsica.RouterTest do
     assert get_resp_header(conn, "access-control-allow-methods") == ["PUT"]
   end
 
+  test "non-matching resource" do
+    conn = conn(:get, "/non-matching") |> put_origin("foo.com") |> Pipeline.call([])
+    assert conn.resp_body == "match"
+    assert get_resp_header(conn, "access-control-allow-origin") == []
+  end
+
   defp put_origin(conn, origin), do: put_req_header(conn, "origin", origin)
 end

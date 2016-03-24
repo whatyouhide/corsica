@@ -46,6 +46,9 @@ defmodule Corsica.Router do
 
       @corsica_router_opts unquote(opts)
 
+      Module.register_attribute(__MODULE__, :corsica_routes, accumulate: true)
+      @before_compile Corsica.Router
+
       use Plug.Router
       plug :match
       plug :dispatch
@@ -79,31 +82,45 @@ defmodule Corsica.Router do
 
   """
   defmacro resource(route, opts \\ []) do
-    quote bind_quoted: [opts: Macro.escape(opts), route: route] do
-      global_opts = Module.get_attribute(__MODULE__, :corsica_router_opts)
-      opts = Keyword.merge(global_opts, opts)
+    quote do
+      @corsica_routes {unquote(route), unquote(Macro.escape(opts))}
+    end
+  end
 
-      # Plug.Router wants this.
-      if String.ends_with?(route, "*") do
-        route = route <> "_"
-      end
+  defmacro __before_compile__(env) do
+    global_opts = Module.get_attribute(env.module, :corsica_router_opts)
+    routes = Module.get_attribute(env.module, :corsica_routes) |> Enum.reverse()
 
-      options route do
-        conn = var!(conn)
-        if Corsica.preflight_req?(conn) do
-          Corsica.send_preflight_resp(conn, unquote(opts))
-        else
-          conn
+    quote bind_quoted: [global_opts: global_opts, routes: routes] do
+      for {route, opts} <- routes do
+        opts = Keyword.merge(global_opts, opts)
+
+        # Plug.Router wants this.
+        if String.ends_with?(route, "*") do
+          route = route <> "_"
+        end
+
+        options route do
+          conn = var!(conn)
+          if Corsica.preflight_req?(conn) do
+            Corsica.send_preflight_resp(conn, unquote(Macro.escape(opts)))
+          else
+            conn
+          end
+        end
+
+        match route do
+          conn = var!(conn)
+          if Corsica.cors_req?(conn) do
+            Corsica.put_cors_simple_resp_headers(conn, unquote(Macro.escape(opts)))
+          else
+            conn
+          end
         end
       end
 
-      match route do
-        conn = var!(conn)
-        if Corsica.cors_req?(conn) do
-          Corsica.put_cors_simple_resp_headers(conn, unquote(opts))
-        else
-          conn
-        end
+      match _ do
+        var!(conn)
       end
     end
   end
