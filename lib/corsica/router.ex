@@ -43,6 +43,12 @@ defmodule Corsica.Router do
   unchanged, effectively continuing with the plug pipeline.
   """
 
+  # A Corsica.Router is a wrapper around Plug.Router: the resource/2 macro will
+  # just register resources (as a {route, options} tuple) in the @corsica_routes
+  # module attribute, then Corsica.Router.__before_compile__/1 will take care of
+  # converting the routes in @corsica_routes to calls to Plug.Router.options/2
+  # and Plug.Router.match/2. __before_compile__/1 will also take care of
+  # defining the final match-all clause for this router.
   @doc false
   defmacro __using__(opts) do
     quote do
@@ -123,6 +129,7 @@ defmodule Corsica.Router do
         end
       end
 
+      # Match-all clause that just returns the connection unchanged.
       match _ do
         var!(conn)
       end
