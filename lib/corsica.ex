@@ -580,8 +580,7 @@ defmodule Corsica do
     non_allowed_header =
       conn
       |> get_req_header("access-control-request-headers")
-      |> Enum.flat_map(&Plug.Conn.Utils.list/1)
-      |> Enum.map(&String.downcase/1)
+      |> Stream.flat_map(&(&1 |> String.downcase() |> Plug.Conn.Utils.list()))
       |> Enum.find(&(not &1 in opts[:allow_headers]))
 
     if non_allowed_header do
