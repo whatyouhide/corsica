@@ -99,6 +99,17 @@ defmodule Corsica do
     * functions with a type `(binary -> boolean)` - the function applied to the
       actual origin has to return `true`
 
+  For example:
+
+      # Matches everything
+      plug Corsica, origins: "*"
+
+      # Matches one of the given origins
+      plug Corsica, ["http://foo.com", "http://bar.com"]
+
+      # Matches the given regex
+      plug Corsica, ~r{^https?://(.*\.?)foo\.com$}
+
   ### The value of the access-control-allow-origin header
 
   The `:origins` option directly influences the value of the

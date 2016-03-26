@@ -53,7 +53,7 @@ options, you can use the `Corsica.Router` module:
 ```elixir
 defmodule MyApp.CORS do
   use Corsica.Router,
-    origins: ["http://foo.com", "http://bar.com"],
+    origins: ["http://localhost", ~r{^https?://(.*\.?)foo\.com$}],
     allow_credentials: true,
     max_age: 600,
 
