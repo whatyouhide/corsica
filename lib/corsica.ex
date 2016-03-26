@@ -256,13 +256,19 @@ defmodule Corsica do
   def sanitize_opts(opts) do
     opts = Keyword.merge(@default_opts, opts)
 
-    if opts[:max_age] do
-      opts = Keyword.update!(opts, :max_age, &to_string/1)
-    end
+    opts =
+      if opts[:max_age] do
+        Keyword.update!(opts, :max_age, &to_string/1)
+      else
+        opts
+      end
 
-    if opts[:expose_headers] do
-      opts = Keyword.update!(opts, :expose_headers, &Enum.join(&1, ", "))
-    end
+    opts =
+      if opts[:expose_headers] do
+        Keyword.update!(opts, :expose_headers, &Enum.join(&1, ", "))
+      else
+        opts
+      end
 
     opts =
       opts
