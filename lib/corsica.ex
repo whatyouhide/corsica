@@ -561,7 +561,7 @@ defmodule Corsica do
     do: false
   defp matching_origin?(allowed, actual) when is_function(allowed),
     do: allowed.(actual)
-  defp matching_origin?(allowed, actual),
+  defp matching_origin?(%Regex{} = allowed, actual),
     do: Regex.match?(allowed, actual)
 
   # Made public for testing.
