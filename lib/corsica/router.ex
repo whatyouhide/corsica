@@ -100,8 +100,7 @@ defmodule Corsica.Router do
   defmacro __before_compile__(env) do
     global_opts = Module.get_attribute(env.module, :corsica_router_opts)
     routes = Module.get_attribute(env.module, :corsica_routes) |> Enum.reverse()
-
-    quote bind_quoted: [global_opts: global_opts, routes: routes] do
+    quote bind_quoted: [global_opts: Macro.escape(global_opts), routes: routes] do
       for {route, opts} <- routes do
         opts = Keyword.merge(global_opts, opts)
 
