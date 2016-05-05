@@ -1,8 +1,13 @@
 # Changelog
 
+## v0.4.2
+
+* Fix a bug where options given to a `Corsica.Router` weren't properly escaped
+  and caused a "invalid quoted expression" error
+
 ## v0.4.1
 
-* Fix a typo in a logged message.
+* Fix a typo in a logged message
 
 ## v0.4.0
 
