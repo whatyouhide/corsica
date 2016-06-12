@@ -16,6 +16,9 @@ defmodule Corsica.Router do
   documentation for the `Corsica` module for more information about these
   options.
 
+  CORS rules in a `Corsica.Router` can be defined through the `resource/2`
+  macro.
+
   ## Examples
 
       defmodule MyApp.CORS do
@@ -105,9 +108,7 @@ defmodule Corsica.Router do
         opts = Keyword.merge(global_opts, opts)
 
         # Plug.Router wants this.
-        if String.ends_with?(route, "*") do
-          route = route <> "_"
-        end
+        route = route <> (if String.ends_with?(route, "*"), do: "_", else: "")
 
         options route do
           conn = var!(conn)
