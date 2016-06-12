@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.0-dev
+
+* Drop support for anonymous functions in the list of `:origins` (it was a
+  mistake to support that in the first place!)
+
 ## v0.4.2
 
 * Fix a bug where options given to a `Corsica.Router` weren't properly escaped

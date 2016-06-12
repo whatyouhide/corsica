@@ -83,8 +83,6 @@ defmodule Corsica do
     * strings - the actual origin and the allowed origin have to be identical
     * regexes - the actual origin has to match the allowed regex (as per
       `Regex.match?/2`)
-    * functions with a type `(binary -> boolean)` - the function applied to the
-      actual origin has to return `true`
 
   For example:
 
@@ -548,8 +546,6 @@ defmodule Corsica do
     do: true
   defp matching_origin?(allowed, _actual) when is_binary(allowed),
     do: false
-  defp matching_origin?(allowed, actual) when is_function(allowed),
-    do: allowed.(actual)
   defp matching_origin?(%Regex{} = allowed, actual),
     do: Regex.match?(allowed, actual)
 

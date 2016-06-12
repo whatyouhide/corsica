@@ -42,7 +42,6 @@ defmodule CorsicaTest do
     assert allowed_origin?(conn, sanitize_opts(origins: ["http://foo.com"]))
     assert allowed_origin?(conn, sanitize_opts(origins: ["http://bar.com", "http://foo.com"]))
     assert allowed_origin?(conn, sanitize_opts(origins: ~r/(foo|bar)\.com$/))
-    assert allowed_origin?(conn, sanitize_opts(origins: &(&1 =~ "foo.com")))
   end
 
   test "allowed_origin?/2: non-allowed origins" do
@@ -51,7 +50,6 @@ defmodule CorsicaTest do
     refute allowed_origin?(conn, sanitize_opts(origins: ["http://foo.org"]))
     refute allowed_origin?(conn, sanitize_opts(origins: ["http://bar.com", "http://baz.com"]))
     refute allowed_origin?(conn, sanitize_opts(origins: ~r/(foo|bar)\.org$/))
-    refute allowed_origin?(conn, sanitize_opts(origins: &(&1 == String.upcase(&1))))
   end
 
   test "allowed_preflight?/2: allowed requests" do
