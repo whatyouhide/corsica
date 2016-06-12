@@ -28,8 +28,7 @@ defmodule Corsica.Mixfile do
     [{:cowboy, ">= 1.0.0"},
      {:plug, ">= 0.9.0"},
      {:earmark, ">= 0.0.0", only: :docs},
-     {:ex_doc, ">= 0.0.0", only: :docs},
-     {:inch_ex, only: :docs}]
+     {:ex_doc, ">= 0.0.0", only: :docs}]
   end
 
   defp package() do
