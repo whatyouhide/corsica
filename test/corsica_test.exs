@@ -35,6 +35,10 @@ defmodule CorsicaTest do
     assert elem(sanitize_opts(expose_headers: ~w(X-Foo X-Bar)), 1)[:expose_headers] == "X-Foo, X-Bar"
   end
 
+  defmodule MyOriginChecker do
+    def check(_origin), do: Process.get(:corsica_accept_origin, false)
+  end
+
   test "allowed_origin?/2: allowed origins" do
     conn = conn(:get, "/") |> put_origin("http://foo.com")
     assert allowed_origin?(conn, sanitize_opts(origins: "*"))
@@ -42,6 +46,9 @@ defmodule CorsicaTest do
     assert allowed_origin?(conn, sanitize_opts(origins: ["http://foo.com"]))
     assert allowed_origin?(conn, sanitize_opts(origins: ["http://bar.com", "http://foo.com"]))
     assert allowed_origin?(conn, sanitize_opts(origins: ~r/(foo|bar)\.com$/))
+
+    Process.put(:corsica_accept_origin, true)
+    assert allowed_origin?(conn, sanitize_opts(origins: {MyOriginChecker, :check}))
   end
 
   test "allowed_origin?/2: non-allowed origins" do
@@ -50,6 +57,9 @@ defmodule CorsicaTest do
     refute allowed_origin?(conn, sanitize_opts(origins: ["http://foo.org"]))
     refute allowed_origin?(conn, sanitize_opts(origins: ["http://bar.com", "http://baz.com"]))
     refute allowed_origin?(conn, sanitize_opts(origins: ~r/(foo|bar)\.org$/))
+
+    Process.put(:corsica_accept_origin, false)
+    refute allowed_origin?(conn, sanitize_opts(origins: {MyOriginChecker, :check}))
   end
 
   test "allowed_preflight?/2: allowed requests" do

@@ -83,6 +83,9 @@ defmodule Corsica do
     * strings - the actual origin and the allowed origin have to be identical
     * regexes - the actual origin has to match the allowed regex (as per
       `Regex.match?/2`)
+    * `{module, function}` tuples - `module.function` is called with the actual
+      origin as its only argument; if it returns `true` the origin is accepted,
+      if it returns `false` the origin is not accepted
 
   For example:
 
@@ -548,6 +551,8 @@ defmodule Corsica do
     do: false
   defp matching_origin?(%Regex{} = allowed, actual),
     do: Regex.match?(allowed, actual)
+  defp matching_origin?({module, function}, actual) when is_atom(module) and is_atom(function),
+    do: apply(module, function, [actual])
 
   # Made public for testing.
   @doc false
