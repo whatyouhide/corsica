@@ -475,7 +475,7 @@ defmodule Corsica do
   end
 
   defp put_allow_origin_header(conn, {:sanitized, opts}) do
-    actual_origin   = conn |> get_req_header("origin") |> hd
+    actual_origin = conn |> get_req_header("origin") |> hd()
     allowed_origins = Keyword.fetch!(opts, :origins)
 
     # '*' cannot be used as the value of the `Access-Control-Allow-Origins`
@@ -580,7 +580,7 @@ defmodule Corsica do
       conn
       |> get_req_header("access-control-request-headers")
       |> Enum.flat_map(&(&1 |> String.downcase() |> Plug.Conn.Utils.list()))
-      |> Enum.find(&(not &1 in opts[:allow_headers]))
+      |> Enum.find(&not(&1 in opts[:allow_headers]))
 
     if non_allowed_header do
       log opts, "Invalid preflight CORS request because the header #{inspect non_allowed_header} is not in :allow_headers"
