@@ -4,6 +4,9 @@
 
 * Drop support for anonymous functions in the list of `:origins` (it was a
   mistake to support that in the first place!)
+* Add support for `{module, function}` tuples in the list of `:origins`
+  (`module.function` will be called with the origin as its argument and will
+  decide if such origin is allowed)
 
 ## v0.4.2
 
