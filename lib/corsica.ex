@@ -586,9 +586,8 @@ defmodule Corsica do
     # We can safely assume there's an Access-Control-Request-Method header
     # otherwise the request wouldn't have been identified as a preflight
     # request.
-    allowed_methods = opts[:allow_methods]
     req_method = conn |> get_req_header("access-control-request-method") |> hd()
-    allowed? = req_method in allowed_methods
+    allowed? = req_method in opts[:allow_methods]
 
     if not allowed? do
       log :rejected, opts, "Invalid preflight CORS request because the req method is not in :allow_methods"
@@ -598,11 +597,12 @@ defmodule Corsica do
   end
 
   defp allowed_request_headers?(conn, opts) do
+    allowed_headers = opts[:allow_headers]
     non_allowed_header =
       conn
       |> get_req_header("access-control-request-headers")
       |> Enum.flat_map(&(&1 |> String.downcase() |> Plug.Conn.Utils.list()))
-      |> Enum.find(&not(&1 in opts[:allow_headers]))
+      |> Enum.find(&not(&1 in allowed_headers))
 
     if non_allowed_header do
       log :rejected, opts, "Invalid preflight CORS request because the header #{inspect non_allowed_header} is not in :allow_headers"
