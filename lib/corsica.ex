@@ -167,13 +167,28 @@ defmodule Corsica do
 
   Corsica supports basic logging functionalities; it can log whether a CORS
   request is a valid one, what CORS headers are added to a response and similar
-  information. By default logging is enabled (at the `:info` level). This can be
-  changed with the `:log` option.
+  information. Corsica distinguishes between three "types" of logs:
 
-      plug Corsica, log: :debug
+    * "rejected" logs, for when the request is "rejected" in the CORS perspective,
+      e.g., it's not allowed
+    * "invalid" logs, for when the request is not a simple CORS request or not a
+      CORS preflight request
+    * "accepted" logs, for when the request is a valid and accepted CORS request
 
-  The value of the `:log` option is used as the logging level. Use `false` to
-  suppress any kind of logging.
+  It's possible to configure these logs with the `:log` option, which is a
+  keyword list with the `:rejected`, `:invalid`, and `:accepted` options. These
+  options specify the logging level of each type of log. The defaults are:
+
+    * `rejected: :warn`
+    * `invalid: :debug`
+    * `accepted: :debug`
+
+  For example:
+
+      plug Corsica, log: [rejected: :error]
+
+  `false` can be used as the value of a level for a log type to suppress that
+  type completely.
 
   """
 
@@ -225,8 +240,15 @@ defmodule Corsica do
   # Plug callbacks.
 
   def init(opts) do
-    opts = Keyword.put_new(opts, :log, :info)
-    sanitize_opts(opts)
+    default_log = [
+      rejected: :warn,
+      invalid: :debug,
+      accepted: :debug,
+    ]
+
+    opts
+    |> Keyword.put(:log, Keyword.merge(default_log, opts[:log] || []))
+    |> sanitize_opts()
   end
 
   def call(%Conn{} = conn, {:sanitized, _} = opts) do
@@ -386,13 +408,13 @@ defmodule Corsica do
 
     cond do
       not cors_req?(conn) ->
-        log opts, "Request is not a CORS request because there is no Origin header"
+        log :invalid, opts, "Request is not a CORS request because there is no Origin header"
         conn
       not allowed_origin?(conn, opts) ->
-        log opts, "Simple CORS request from Origin '#{origin(conn)}' is not allowed"
+        log :rejected, opts, "Simple CORS request from Origin '#{origin(conn)}' is not allowed"
         conn
       true ->
-        log opts, "Simple CORS request from Origin '#{origin(conn)}' is allowed"
+        log :accepted, opts, "Simple CORS request from Origin '#{origin(conn)}' is allowed"
         conn
         |> put_common_headers(opts)
         |> put_expose_headers_header(opts)
@@ -441,16 +463,16 @@ defmodule Corsica do
 
     cond do
       not preflight_req?(conn) ->
-        log opts, "Request is not a preflight CORS request (has no Origin header," <>
-                  " it's not OPTIONS or has no access-control-request-method header"
+        log :invalid, opts, "Request is not a preflight CORS request (has no Origin header," <>
+                            " it's not OPTIONS or has no access-control-request-method header"
         conn
       not allowed_origin?(conn, opts) ->
-        log opts, "Origin '#{origin(conn)}' not allowed, preflight CORS request is not valid"
+        log :rejected, opts, "Origin '#{origin(conn)}' not allowed, preflight CORS request is not valid"
         conn
       not allowed_preflight?(conn, opts) ->
         conn
       true ->
-        log opts, "Preflight CORS request from Origin '#{origin(conn)}' is allowed"
+        log :accepted, opts, "Preflight CORS request from Origin '#{origin(conn)}' is allowed"
         conn
         |> put_common_headers(opts)
         |> put_allow_methods_header(opts)
@@ -569,7 +591,7 @@ defmodule Corsica do
     allowed? = req_method in allowed_methods
 
     if not allowed? do
-      log opts, "Invalid preflight CORS request because the req method is not in :allow_methods"
+      log :rejected, opts, "Invalid preflight CORS request because the req method is not in :allow_methods"
     end
 
     allowed?
@@ -583,19 +605,19 @@ defmodule Corsica do
       |> Enum.find(&not(&1 in opts[:allow_headers]))
 
     if non_allowed_header do
-      log opts, "Invalid preflight CORS request because the header #{inspect non_allowed_header} is not in :allow_headers"
+      log :rejected, opts, "Invalid preflight CORS request because the header #{inspect non_allowed_header} is not in :allow_headers"
     end
 
     # If there's no non_allowed_header, then they're all allowed.
     is_nil(non_allowed_header)
   end
 
-  defp log({:sanitized, opts}, what) do
-    log(opts, what)
+  defp log(type, {:sanitized, opts}, what) do
+    log(type, opts, what)
   end
 
-  defp log(opts, what) when is_list(opts) do
-    if level = opts[:log] do
+  defp log(type, opts, what) when is_list(opts) and type in [:invalid, :rejected, :accepted] do
+    if level = get_in(opts, [:log, type])  do
       Logger.log(level, what)
     end
   end

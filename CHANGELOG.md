@@ -7,6 +7,9 @@
 * Add support for `{module, function}` tuples in the list of `:origins`
   (`module.function` will be called with the origin as its argument and will
   decide if such origin is allowed)
+* Change the `:log` option from being a log level or `false` to being a keyword
+  list with log levels or `false` for each log "type" (e.g., `:rejected` or
+  `:invalid`)
 
 ## v0.4.2
 
