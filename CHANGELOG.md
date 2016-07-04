@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.5.0-dev
+## v0.5.0
 
 * Drop support for anonymous functions in the list of `:origins` (it was a
   mistake to support that in the first place!)
