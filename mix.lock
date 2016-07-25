@@ -1,7 +1,7 @@
-%{"cowboy": {:hex, :cowboy, "1.0.3", "101a5f826ce9a1ebb2ea53a2cdfffc74736e99807e9e492ecd5f26544c04082b", [:rebar, :make], [{:cowlib, "~> 1.0.0", [hex: :cowlib, optional: false]}, {:ranch, "~> 1.0", [hex: :ranch, optional: false]}]},
-  "cowlib": {:hex, :cowlib, "1.0.1", "175a633c472058bbeb1b238a6409766a48b52b43b7b687ed70f03cf6e854b7d9", [:make], []},
+%{"cowboy": {:hex, :cowboy, "1.0.4", "a324a8df9f2316c833a470d918aaf73ae894278b8aa6226ce7a9bf699388f878", [:rebar, :make], [{:cowlib, "~> 1.0.0", [hex: :cowlib, optional: false]}, {:ranch, "~> 1.0", [hex: :ranch, optional: false]}]},
+  "cowlib": {:hex, :cowlib, "1.0.2", "9d769a1d062c9c3ac753096f868ca121e2730b9a377de23dec0f7e08b1df84ee", [:make], []},
   "earmark": {:hex, :earmark, "0.2.1", "ba6d26ceb16106d069b289df66751734802777a3cbb6787026dd800ffeb850f3", [:mix], []},
   "ex_doc": {:hex, :ex_doc, "0.11.5", "0dc51cb84f8312162a2313d6c71573a9afa332333d8a332bb12540861b9834db", [:mix], [{:earmark, "~> 0.1.17 or ~> 0.2", [hex: :earmark, optional: true]}]},
-  "plug": {:hex, :plug, "1.0.1", "abb84edd3d581f9c421b07b016aa2e4091db396cdc20c8fcaad6111074eeae09", [:mix], [{:cowboy, "~> 1.0", [hex: :cowboy, optional: true]}]},
+  "plug": {:hex, :plug, "1.1.6", "8927e4028433fcb859e000b9389ee9c37c80eb28378eeeea31b0273350bf668b", [:mix], [{:cowboy, "~> 1.0", [hex: :cowboy, optional: true]}]},
   "poison": {:hex, :poison, "1.5.0"},
-  "ranch": {:hex, :ranch, "1.1.0", "f7ed6d97db8c2a27cca85cacbd543558001fc5a355e93a7bff1e9a9065a8545b", [:make], []}}
+  "ranch": {:hex, :ranch, "1.2.1", "a6fb992c10f2187b46ffd17ce398ddf8a54f691b81768f9ef5f461ea7e28c762", [:make], []}}
