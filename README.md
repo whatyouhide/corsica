@@ -29,6 +29,14 @@ defp dependencies do
 end
 ```
 
+Ensure `:corsica` is started before your application:
+
+```elixir
+def application do
+  [applications: [:corsica]]
+end
+```
+
 and then run `$ mix deps.get`. Corsica is a plug and thus depends on
 [Plug][plug] too, but you have to explicitly list Plug as a dependency of your
 project (since the dependency is `optional: true` in Corsica).
