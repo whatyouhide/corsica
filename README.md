@@ -1,6 +1,7 @@
 # Corsica
 
 [![Build Status](https://travis-ci.org/whatyouhide/corsica.svg?branch=master&style=flat-square)](https://travis-ci.org/whatyouhide/corsica)
+[![Hex.pm](https://img.shields.io/hexpm/v/corsica.svg)](https://hex.pm/packages/corsica)
 
 Corsica is a plug and a DSL for handling [CORS][cors-wiki] requests.
 [Documentation can be found online][docs].
