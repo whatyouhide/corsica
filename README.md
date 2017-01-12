@@ -61,7 +61,7 @@ defmodule MyApp.CORS do
   use Corsica.Router,
     origins: ["http://localhost", ~r{^https?://(.*\.?)foo\.com$}],
     allow_credentials: true,
-    max_age: 600,
+    max_age: 600
 
   resource "/public/*", origins: "*"
   resource "/*"
