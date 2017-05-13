@@ -559,13 +559,14 @@ defmodule Corsica do
   @doc false
   def allowed_origin?(conn, {:sanitized, opts}) do
     [origin | _] = get_req_header(conn, "origin")
-    do_allowed_origin?(opts[:origins], origin)
-  end
 
-  defp do_allowed_origin?("*", _origin),
-    do: true
-  defp do_allowed_origin?(allowed_origins, origin),
-    do: Enum.any?(List.wrap(allowed_origins), &matching_origin?(&1, origin))
+    case opts[:origins] do
+      "*" ->
+        true
+      allowed_origins ->
+        Enum.any?(List.wrap(allowed_origins), &matching_origin?(&1, origin))
+    end
+  end
 
   defp matching_origin?(origin, origin),
     do: true
@@ -586,14 +587,14 @@ defmodule Corsica do
     # We can safely assume there's an Access-Control-Request-Method header
     # otherwise the request wouldn't have been identified as a preflight
     # request.
-    req_method = conn |> get_req_header("access-control-request-method") |> hd()
-    allowed? = req_method in opts[:allow_methods]
+    [req_method | _] = get_req_header(conn, "access-control-request-method")
 
-    if not allowed? do
-      log :rejected, opts, "Invalid preflight CORS request because the req method is not in :allow_methods"
+    if req_method in opts[:allow_methods] do
+      true
+    else
+      log :rejected, opts, "Invalid preflight CORS request because the request method (#{inspect(req_method)}) is not in :allow_methods"
+      false
     end
-
-    allowed?
   end
 
   defp allowed_request_headers?(conn, opts) do
