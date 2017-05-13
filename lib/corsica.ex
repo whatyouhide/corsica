@@ -598,18 +598,20 @@ defmodule Corsica do
 
   defp allowed_request_headers?(conn, opts) do
     allowed_headers = opts[:allow_headers]
-    non_allowed_header =
-      conn
-      |> get_req_header("access-control-request-headers")
-      |> Enum.flat_map(&(&1 |> String.downcase() |> Plug.Conn.Utils.list()))
-      |> Enum.find(&not(&1 in allowed_headers))
 
-    if non_allowed_header do
-      log :rejected, opts, "Invalid preflight CORS request because the header #{inspect non_allowed_header} is not in :allow_headers"
+    non_allowed_headers =
+      for req_headers <- get_req_header(conn, "access-control-request-headers"),
+          req_headers = String.downcase(req_headers),
+          req_header <- Plug.Conn.Utils.list(req_headers),
+          not(req_header in allowed_headers),
+          do: req_header
+
+    if non_allowed_headers == [] do
+      true
+    else
+      log :rejected, opts, "Invalid preflight CORS request because these headers were not allowed in :allow_headers: #{inspect(non_allowed_headers)}"
+      false
     end
-
-    # If there's no non_allowed_header, then they're all allowed.
-    is_nil(non_allowed_header)
   end
 
   defp log(type, {:sanitized, opts}, what) do
