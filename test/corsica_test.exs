@@ -28,11 +28,38 @@ defmodule CorsicaTest do
   end
 
   test "sanitize_opts/1" do
-    assert elem(sanitize_opts(max_age: 600), 1)[:max_age] == "600"
-    assert elem(sanitize_opts([]), 1)[:max_age] == nil
-    assert elem(sanitize_opts(allow_methods: ~w(get pOSt)), 1)[:allow_methods] == ~w(GET POST)
-    assert elem(sanitize_opts(allow_headers: ~w(X-Header)), 1)[:allow_headers] == ~w(x-header)
-    assert elem(sanitize_opts(expose_headers: ~w(X-Foo X-Bar)), 1)[:expose_headers] == "X-Foo, X-Bar"
+    # :max_age
+    assert sanitize_opts(max_age: 600).max_age == "600"
+    assert sanitize_opts([]).max_age == nil
+
+    # :expose_headers
+    assert sanitize_opts(expose_headers: ~w(X-Foo X-Bar)).expose_headers == "X-Foo, X-Bar"
+    assert sanitize_opts([]).expose_headers == nil
+
+    # :origins
+    assert sanitize_opts(origins: ["foo.bar", ~r/.*/, {MyMod, :my_fun}]).origins ==
+           ["foo.bar", ~r/.*/, {MyMod, :my_fun}]
+    assert sanitize_opts([]).origins == "*"
+
+    # :allow_methods
+    assert sanitize_opts(allow_methods: ~w(get pOSt PUT)).allow_methods == ~w(GET POST PUT)
+    assert sanitize_opts([]).allow_methods == ~w(HEAD GET POST PUT PATCH DELETE)
+
+    # :allow_headers
+    assert sanitize_opts(allow_headers: ~w(X-Header y-HEADER)).allow_headers == ~w(x-header y-header)
+    assert sanitize_opts([]).allow_headers == []
+
+    # :allow_credentials
+    assert sanitize_opts(allow_credentials: true).allow_credentials == true
+    assert sanitize_opts([]).allow_credentials == false
+
+    # :log
+    log = sanitize_opts(log: [rejected: :error, accepted: false]).log
+    assert Keyword.fetch!(log, :rejected) == :error
+    assert Keyword.fetch!(log, :invalid) == :debug
+    assert Keyword.fetch!(log, :accepted) == false
+
+    assert sanitize_opts([]).log == false
   end
 
   defmodule MyOriginChecker do

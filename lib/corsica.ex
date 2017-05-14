@@ -1,17 +1,4 @@
 defmodule Corsica do
-  @default_opts [
-    origins: "*",
-    allow_methods: ~w(HEAD GET POST PUT PATCH DELETE),
-    allow_headers: ~w(),
-    allow_credentials: false,
-  ]
-
-  @default_log_levels [
-    rejected: :warn,
-    invalid: :debug,
-    accepted: :debug,
-  ]
-
   @moduledoc """
   Plug-based swiss-army knife for CORS requests.
 
@@ -80,11 +67,10 @@ defmodule Corsica do
   using a Corsica-based router or when plugging `Corsica` in a plug pipeline.
 
   `:origins` can be a single value or a list of values. `"*"` can only appear as
-  a single value. The default value is `#{inspect @default_opts[:origins]}`.
-  The origin of a request (specified by the `"origin"` request header) will be
-  considered a valid origin if it "matches" at least one of the origins
-  specified in `:origins`. What "matches" means depends on the type of
-  origin. Origins can be:
+  a single value. The default value is `"*"`.  The origin of a request
+  (specified by the `"origin"` request header) will be considered a valid origin
+  if it "matches" at least one of the origins specified in `:origins`. What
+  "matches" means depends on the type of origin. Origins can be:
 
     * strings - the actual origin and the allowed origin have to be identical
     * regexes - the actual origin has to match the allowed regex (as per
@@ -129,18 +115,17 @@ defmodule Corsica do
 
     * `:allow_headers` - a list of headers (as binaries). Sets the value of
       the `access-control-allow-headers` header used with preflight requests.
-      Defaults to `#{inspect @default_opts[:allow_headers]}` (no headers are
-      allowed).
+      Defaults to `[]` (no headers are allowed).
     * `:allow_methods` - is a list of HTTP methods (as binaries). Sets the value
       of the `access-control-allow-methods` header used with preflight requests.
-      Defaults to `#{inspect @default_opts[:allow_methods]}`.
+      Defaults to `["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"]`.
     * `:allow_credentials` - is a boolean. If `true`, sends the
       `access-control-allow-credentials` with value `true`. If `false`, prevents
       that header from being sent at all. If `:origins` is set to `"*"` and
       `:allow_credentials` is set to `true`, then the value of the
       `access-control-allow-origin` header will always be the value of the
       `origin` request header (as per the W3C CORS specification) and not `*`.
-      Defaults to `#{inspect @default_opts[:allow_credentials]}`.
+      Defaults to `false`.
     * `:expose_headers` - is a list of headers (as binaries). Sets the value of
       the `access-control-expose-headers` response header. This option *does
       not* have a default value; if it's not provided, the
@@ -149,7 +134,7 @@ defmodule Corsica do
       `access-control-max-age` header used with preflight requests. This option
       *does not* have a default value; if it's not provided, the
       `access-control-max-age` header is not sent at all.
-    * `:log` - see the "Logging" section below.
+    * `:log` - see the "Logging" section below. Defaults to `false`.
 
   ## Responding to preflight requests
 
@@ -183,18 +168,24 @@ defmodule Corsica do
 
   It's possible to configure these logs with the `:log` option, which is a
   keyword list with the `:rejected`, `:invalid`, and `:accepted` options. These
-  options specify the logging level of each type of log. The defaults are:
+  options specify the logging level of each type of log. The defaults values for
+  each level are:
 
     * `rejected: :warn`
     * `invalid: :debug`
     * `accepted: :debug`
 
+  `false` can be used as the value of a level for a log type to suppress that
+  type completely. `false` can also be used as the value of the `:log` option
+  directly to suppress all logs.
+
+  The default value for the `:log` option is `false`.
+
   For example:
 
       plug Corsica, log: [rejected: :error]
-
-  `false` can be used as the value of a level for a log type to suppress that
-  type completely.
+      plug Corsica, log: false
+      plug Corsica, log: [rejected: :info, accepted: false]
 
   """
 
@@ -243,15 +234,31 @@ defmodule Corsica do
 
   @behaviour Plug
 
+  @default_log_levels [
+    rejected: :warn,
+    invalid: :debug,
+    accepted: :debug,
+  ]
+
+  defmodule Options do
+    defstruct [
+      :max_age,
+      :expose_headers,
+      origins: "*",
+      allow_methods: ~w(HEAD GET POST PUT PATCH DELETE),
+      allow_headers: [],
+      allow_credentials: false,
+      log: false,
+    ]
+  end
+
   # Plug callbacks.
 
   def init(opts) do
-    opts
-    |> Keyword.update(:log, @default_log_levels, &Keyword.merge(@default_log_levels, &1))
-    |> sanitize_opts()
+    sanitize_opts(opts)
   end
 
-  def call(%Conn{} = conn, {:sanitized, _} = opts) do
+  def call(%Conn{} = conn, %Options{} = opts) do
     cond do
       not cors_req?(conn)      -> conn
       not preflight_req?(conn) -> put_cors_simple_resp_headers(conn, opts)
@@ -261,33 +268,25 @@ defmodule Corsica do
 
   # Public so that it can be called from `Corsica.Router` (and for testing too).
   @doc false
-  def sanitize_opts({:sanitized, _} = opts) do
+  def sanitize_opts(%Options{} = opts) do
     opts
   end
 
   def sanitize_opts(opts) do
-    opts = Keyword.merge(@default_opts, opts)
+    struct(Options, opts)
+    |> Map.update!(:allow_methods, fn methods -> Enum.map(methods, &String.upcase/1) end)
+    |> Map.update!(:allow_headers, fn headers -> Enum.map(headers, &String.downcase/1) end)
+    |> Map.update!(:log, fn levels -> levels && Keyword.merge(@default_log_levels, levels) end)
+    |> maybe_update_option(:max_age, &to_string/1)
+    |> maybe_update_option(:expose_headers, &Enum.join(&1, ", "))
+  end
 
-    opts =
-      if opts[:max_age] do
-        Keyword.update!(opts, :max_age, &to_string/1)
-      else
-        opts
-      end
-
-    opts =
-      if opts[:expose_headers] do
-        Keyword.update!(opts, :expose_headers, &Enum.join(&1, ", "))
-      else
-        opts
-      end
-
-    opts =
+  defp maybe_update_option(opts, option, update_fun) do
+    if value = Map.get(opts, option) do
+      Map.put(opts, option, update_fun.(value))
+    else
       opts
-      |> Keyword.update!(:allow_methods, fn(m) -> Enum.map(m, &String.upcase/1) end)
-      |> Keyword.update!(:allow_headers, fn(h) -> Enum.map(h, &String.downcase/1) end)
-
-    {:sanitized, opts}
+    end
   end
 
   # Utilities
@@ -481,29 +480,29 @@ defmodule Corsica do
     end
   end
 
-  defp put_common_headers(conn, {:sanitized, opts} = sanitized) do
+  defp put_common_headers(conn, %Options{} = opts) do
     conn
-    |> put_allow_credentials_header(sanitized)
-    |> put_allow_origin_header(sanitized)
-    |> update_vary_header(opts[:origins])
+    |> put_allow_credentials_header(opts)
+    |> put_allow_origin_header(opts)
+    |> update_vary_header(opts.origins)
   end
 
-  defp put_allow_credentials_header(conn, {:sanitized, opts}) do
-    if opts[:allow_credentials] do
+  defp put_allow_credentials_header(conn, %Options{} = opts) do
+    if opts.allow_credentials do
       put_resp_header(conn, "access-control-allow-credentials", "true")
     else
       conn
     end
   end
 
-  defp put_allow_origin_header(conn, {:sanitized, opts}) do
+  defp put_allow_origin_header(conn, %Options{} = opts) do
     actual_origin = conn |> get_req_header("origin") |> hd()
-    allowed_origins = Keyword.fetch!(opts, :origins)
+    allowed_origins = opts.origins
 
     # '*' cannot be used as the value of the `Access-Control-Allow-Origins`
     # header if `Access-Control-Allow-Credentials` is true.
     value =
-      if allowed_origins == "*" and not opts[:allow_credentials] do
+      if allowed_origins == "*" and not opts.allow_credentials do
         "*"
       else
         actual_origin
@@ -521,26 +520,23 @@ defmodule Corsica do
   defp update_vary_header(conn, _origin),
     do: %{conn | resp_headers: [{"vary", "origin"} | conn.resp_headers]}
 
-  defp put_allow_methods_header(conn, {:sanitized, opts}) do
-    value = opts |> Keyword.fetch!(:allow_methods) |> Enum.join(", ")
-    put_resp_header(conn, "access-control-allow-methods", value)
+  defp put_allow_methods_header(conn, %Options{allow_methods: allow_methods}) do
+    put_resp_header(conn, "access-control-allow-methods", Enum.join(allow_methods, ", "))
   end
 
-  defp put_allow_headers_header(conn, {:sanitized, opts}) do
-    value = opts |> Keyword.fetch!(:allow_headers) |> Enum.join(", ")
-    put_resp_header(conn, "access-control-allow-headers", value)
+  defp put_allow_headers_header(conn, %Options{allow_headers: allow_headers}) do
+    put_resp_header(conn, "access-control-allow-headers", Enum.join(allow_headers, ", "))
   end
 
-  defp put_max_age_header(conn, {:sanitized, opts}) do
-    if max_age = opts[:max_age] do
+  defp put_max_age_header(conn, %Options{max_age: max_age}) do
+    if max_age do
       put_resp_header(conn, "access-control-max-age", max_age)
     else
       conn
     end
   end
 
-  defp put_expose_headers_header(conn, {:sanitized, opts}) do
-    expose_headers = opts[:expose_headers]
+  defp put_expose_headers_header(conn, %Options{expose_headers: expose_headers}) do
     if expose_headers && expose_headers != "" do
       put_resp_header(conn, "access-control-expose-headers", expose_headers)
     else
@@ -557,10 +553,10 @@ defmodule Corsica do
 
   # Made public for testing
   @doc false
-  def allowed_origin?(conn, {:sanitized, opts}) do
+  def allowed_origin?(conn, %Options{} = opts) do
     [origin | _] = get_req_header(conn, "origin")
 
-    case opts[:origins] do
+    case opts.origins do
       "*" ->
         true
       allowed_origins ->
@@ -579,17 +575,17 @@ defmodule Corsica do
 
   # Made public for testing.
   @doc false
-  def allowed_preflight?(conn, {:sanitized, opts}) do
+  def allowed_preflight?(conn, %Options{} = opts) do
     allowed_request_method?(conn, opts) and allowed_request_headers?(conn, opts)
   end
 
-  defp allowed_request_method?(conn, opts) do
+  defp allowed_request_method?(conn, %Options{allow_methods: allow_methods} = opts) do
     # We can safely assume there's an Access-Control-Request-Method header
     # otherwise the request wouldn't have been identified as a preflight
     # request.
     [req_method | _] = get_req_header(conn, "access-control-request-method")
 
-    if req_method in opts[:allow_methods] do
+    if req_method in allow_methods do
       true
     else
       log :rejected, opts, "Invalid preflight CORS request because the request method (#{inspect(req_method)}) is not in :allow_methods"
@@ -597,14 +593,12 @@ defmodule Corsica do
     end
   end
 
-  defp allowed_request_headers?(conn, opts) do
-    allowed_headers = opts[:allow_headers]
-
+  defp allowed_request_headers?(conn, %Options{allow_headers: allow_headers} = opts) do
     non_allowed_headers =
       for req_headers <- get_req_header(conn, "access-control-request-headers"),
           req_headers = String.downcase(req_headers),
           req_header <- Plug.Conn.Utils.list(req_headers),
-          not(req_header in allowed_headers),
+          not(req_header in allow_headers),
           do: req_header
 
     if non_allowed_headers == [] do
@@ -615,13 +609,16 @@ defmodule Corsica do
     end
   end
 
-  defp log(type, {:sanitized, opts}, what) do
-    log(type, opts, what)
+  defp log(_type, %Options{log: false}, _what) do
+    :ok
   end
 
-  defp log(type, opts, what) when is_list(opts) and type in [:invalid, :rejected, :accepted] do
-    if level = get_in(opts, [:log, type])  do
+  defp log(type, %Options{log: log_opts}, what)
+       when is_list(log_opts) and type in [:invalid, :rejected, :accepted] do
+    if level = Keyword.fetch!(log_opts, type) do
       Logger.log(level, what)
+    else
+      :ok
     end
   end
 end
