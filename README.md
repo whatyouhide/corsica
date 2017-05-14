@@ -26,11 +26,12 @@ Just add the `:corsica` dependency to your project's `mix.exs`:
 ```elixir
 defp dependencies do
   [{:plug, "~> 1.0"},
-   {:corsica, "~> 0.5"}]
+   {:corsica, "~> 1.0"}]
 end
 ```
 
-Ensure `:corsica` is started before your application:
+Ensure `:corsica` is started before your application (only if using
+`:applications` and not using application inference):
 
 ```elixir
 def application do
@@ -103,7 +104,7 @@ in your shell. If you're contributing to documentation, you can preview the
 generated documentation locally by running:
 
 ```bash
-$ MIX_ENV=docs mix do deps.get, docs
+mix docs
 ```
 
 Documentation will be generated in the `doc/` directory.
