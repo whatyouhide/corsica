@@ -6,6 +6,12 @@ defmodule Corsica do
     allow_credentials: false,
   ]
 
+  @default_log_levels [
+    rejected: :warn,
+    invalid: :debug,
+    accepted: :debug,
+  ]
+
   @moduledoc """
   Plug-based swiss-army knife for CORS requests.
 
@@ -240,14 +246,8 @@ defmodule Corsica do
   # Plug callbacks.
 
   def init(opts) do
-    default_log = [
-      rejected: :warn,
-      invalid: :debug,
-      accepted: :debug,
-    ]
-
     opts
-    |> Keyword.put(:log, Keyword.merge(default_log, opts[:log] || []))
+    |> Keyword.update(:log, @default_log_levels, &Keyword.merge(@default_log_levels, &1))
     |> sanitize_opts()
   end
 
