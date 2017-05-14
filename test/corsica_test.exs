@@ -305,5 +305,55 @@ defmodule CorsicaTest do
     assert get_resp_header(conn, "access-control-allow-methods") == []
   end
 
+  defmodule MyRouter do
+    use Plug.Router
+    plug Corsica, allow_methods: ~w(PUT)
+    plug :match
+    plug :dispatch
+    match _, do: send_resp(conn, 200, "matched")
+  end
+
+  test "using Corsica as a plug" do
+    # Simple requests.
+
+    conn =
+      conn(:get, "/")
+      |> put_origin("http://example.com")
+      |> MyRouter.call([])
+    assert conn.state == :sent
+    assert conn.status == 200
+    assert conn.resp_body == "matched"
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+
+    conn = MyRouter.call(conn(:get, "/"), _opts = [])
+    assert conn.state == :sent
+    assert conn.status == 200
+    assert conn.resp_body == "matched"
+    assert get_resp_header(conn, "access-control-allow-origin") == []
+
+    # Preflight requests.
+    conn =
+      conn(:options, "/")
+      |> put_origin("http://example.com")
+      |> put_req_header("access-control-request-method", "PUT")
+      |> MyRouter.call([])
+    assert conn.state == :sent
+    assert conn.status == 200
+    assert conn.resp_body == ""
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+    assert get_resp_header(conn, "access-control-allow-methods") == ["PUT"]
+
+    conn =
+      conn(:options, "/")
+      |> put_origin("http://example.com")
+      |> put_req_header("access-control-request-method", "PATCH")
+      |> MyRouter.call([])
+    assert conn.state == :sent
+    assert conn.status == 200
+    assert conn.resp_body == ""
+    assert get_resp_header(conn, "access-control-allow-origin") == []
+    assert get_resp_header(conn, "access-control-allow-methods") == []
+  end
+
   defp put_origin(conn, origin), do: put_req_header(conn, "origin", origin)
 end
