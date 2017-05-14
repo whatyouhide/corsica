@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.0
+
+* Drop support for older Elixir versions and require Elixir `~> 1.3`
+* Improve logs
+
 ## v0.5.0
 
 * Drop support for anonymous functions in the list of `:origins` (it was a

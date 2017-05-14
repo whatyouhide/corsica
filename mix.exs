@@ -1,7 +1,7 @@
 defmodule Corsica.Mixfile do
   use Mix.Project
 
-  @version "0.5.0"
+  @version "1.0.0"
 
   @description "Plug-based swiss-army knife for CORS requests."
 
