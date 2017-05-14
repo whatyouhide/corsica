@@ -416,10 +416,10 @@ defmodule Corsica do
         log(:invalid, opts, "Request is not a CORS request because there is no Origin header")
         conn
       not allowed_origin?(conn, opts) ->
-        log(:rejected, opts, "Simple CORS request from Origin '#{origin(conn)}' is not allowed")
+        log(:rejected, opts, "Simple CORS request from Origin \"#{origin(conn)}\" is not allowed")
         conn
       true ->
-        log(:accepted, opts, "Simple CORS request from Origin '#{origin(conn)}' is allowed")
+        log(:accepted, opts, "Simple CORS request from Origin \"#{origin(conn)}\" is allowed")
         conn
         |> put_common_headers(opts)
         |> put_expose_headers_header(opts)
@@ -472,13 +472,15 @@ defmodule Corsica do
   def put_cors_preflight_resp_headers(%Conn{} = conn, %Options{} = opts) do
     cond do
       not preflight_req?(conn) ->
-        log(:invalid, opts, "Request is not a preflight CORS request (has no Origin header, " <>
-                            "it's not OPTIONS or has no access-control-request-method header")
+        log(:invalid, opts, "Request is not a preflight CORS request because either it has no Origin header, " <>
+                            "its method is not OPTIONS, or it has no Access-Control-Request-Method header")
         conn
       not allowed_origin?(conn, opts) ->
-        log(:rejected, opts, "Origin \"#{origin(conn)}\" not allowed, preflight CORS request is not valid")
+        log(:rejected, opts, "Preflight CORS request from Origin \"#{origin(conn)}\" is not allowed " <>
+                             "because its origin is not allowed")
         conn
       not allowed_preflight?(conn, opts) ->
+        # More detailed info is logged from allowed_preflight?/2.
         conn
       true ->
         log(:accepted, opts, "Preflight CORS request from Origin \"#{origin(conn)}\" is allowed")
@@ -613,7 +615,7 @@ defmodule Corsica do
       true
     else
       log(:rejected, opts, "Invalid preflight CORS request because these headers were " <>
-                           "not allowed in :allow_headers: #{inspect(non_allowed_headers)}")
+                           "not allowed in :allow_headers: #{Enum.join(non_allowed_headers, ", ")}")
       false
     end
   end
