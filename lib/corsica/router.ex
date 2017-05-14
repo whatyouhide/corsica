@@ -103,17 +103,22 @@ defmodule Corsica.Router do
   defmacro __before_compile__(env) do
     global_opts = Module.get_attribute(env.module, :corsica_router_opts)
     routes = Module.get_attribute(env.module, :corsica_routes) |> Enum.reverse()
+
     quote bind_quoted: [global_opts: Macro.escape(global_opts), routes: routes] do
       for {route, opts} <- routes do
-        opts = Corsica.sanitize_opts(Keyword.merge(global_opts, opts))
+        opts =
+          global_opts
+          |> Keyword.merge(opts)
+          |> Corsica.sanitize_opts()
+          |> Macro.escape()
 
         # Plug.Router wants this.
-        route = route <> (if String.ends_with?(route, "*"), do: "_", else: "")
+        route = route <> if(String.ends_with?(route, "*"), do: "_", else: "")
 
         options route do
           conn = var!(conn)
           if Corsica.preflight_req?(conn) do
-            Corsica.send_preflight_resp(conn, unquote(Macro.escape(opts)))
+            Corsica.send_preflight_resp(conn, unquote(opts))
           else
             conn
           end
@@ -122,7 +127,7 @@ defmodule Corsica.Router do
         match route do
           conn = var!(conn)
           if Corsica.cors_req?(conn) do
-            Corsica.put_cors_simple_resp_headers(conn, unquote(Macro.escape(opts)))
+            Corsica.put_cors_simple_resp_headers(conn, unquote(opts))
           else
             conn
           end

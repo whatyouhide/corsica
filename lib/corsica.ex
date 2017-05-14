@@ -413,13 +413,13 @@ defmodule Corsica do
   def put_cors_simple_resp_headers(%Conn{} = conn, %Options{} = opts) do
     cond do
       not cors_req?(conn) ->
-        log :invalid, opts, "Request is not a CORS request because there is no Origin header"
+        log(:invalid, opts, "Request is not a CORS request because there is no Origin header")
         conn
       not allowed_origin?(conn, opts) ->
-        log :rejected, opts, "Simple CORS request from Origin '#{origin(conn)}' is not allowed"
+        log(:rejected, opts, "Simple CORS request from Origin '#{origin(conn)}' is not allowed")
         conn
       true ->
-        log :accepted, opts, "Simple CORS request from Origin '#{origin(conn)}' is allowed"
+        log(:accepted, opts, "Simple CORS request from Origin '#{origin(conn)}' is allowed")
         conn
         |> put_common_headers(opts)
         |> put_expose_headers_header(opts)
@@ -472,16 +472,16 @@ defmodule Corsica do
   def put_cors_preflight_resp_headers(%Conn{} = conn, %Options{} = opts) do
     cond do
       not preflight_req?(conn) ->
-        log :invalid, opts, "Request is not a preflight CORS request (has no Origin header," <>
-                            " it's not OPTIONS or has no access-control-request-method header"
+        log(:invalid, opts, "Request is not a preflight CORS request (has no Origin header, " <>
+                            "it's not OPTIONS or has no access-control-request-method header")
         conn
       not allowed_origin?(conn, opts) ->
-        log :rejected, opts, "Origin '#{origin(conn)}' not allowed, preflight CORS request is not valid"
+        log(:rejected, opts, "Origin \"#{origin(conn)}\" not allowed, preflight CORS request is not valid")
         conn
       not allowed_preflight?(conn, opts) ->
         conn
       true ->
-        log :accepted, opts, "Preflight CORS request from Origin '#{origin(conn)}' is allowed"
+        log(:accepted, opts, "Preflight CORS request from Origin \"#{origin(conn)}\" is allowed")
         conn
         |> put_common_headers(opts)
         |> put_allow_methods_header(opts)
@@ -497,22 +497,21 @@ defmodule Corsica do
     |> update_vary_header(opts.origins)
   end
 
-  defp put_allow_credentials_header(conn, %Options{} = opts) do
-    if opts.allow_credentials do
+  defp put_allow_credentials_header(conn, %Options{allow_credentials: allow_credentials}) do
+    if allow_credentials do
       put_resp_header(conn, "access-control-allow-credentials", "true")
     else
       conn
     end
   end
 
-  defp put_allow_origin_header(conn, %Options{} = opts) do
-    actual_origin = conn |> get_req_header("origin") |> hd()
-    allowed_origins = opts.origins
+  defp put_allow_origin_header(conn, %Options{origins: origins, allow_credentials: allow_credentials}) do
+    [actual_origin | _] = get_req_header(conn, "origin")
 
     # '*' cannot be used as the value of the `Access-Control-Allow-Origins`
     # header if `Access-Control-Allow-Credentials` is true.
     value =
-      if allowed_origins == "*" and not opts.allow_credentials do
+      if origins == "*" and not allow_credentials do
         "*"
       else
         actual_origin
@@ -563,15 +562,13 @@ defmodule Corsica do
 
   # Made public for testing
   @doc false
-  def allowed_origin?(conn, %Options{} = opts) do
-    [origin | _] = get_req_header(conn, "origin")
+  def allowed_origin?(_conn, %Options{origins: "*"}) do
+    true
+  end
 
-    case opts.origins do
-      "*" ->
-        true
-      allowed_origins ->
-        Enum.any?(List.wrap(allowed_origins), &matching_origin?(&1, origin))
-    end
+  def allowed_origin?(conn, %Options{origins: origins}) do
+    [origin | _] = get_req_header(conn, "origin")
+    Enum.any?(List.wrap(origins), &matching_origin?(&1, origin))
   end
 
   defp matching_origin?(origin, origin),
@@ -598,7 +595,8 @@ defmodule Corsica do
     if req_method in allow_methods do
       true
     else
-      log :rejected, opts, "Invalid preflight CORS request because the request method (#{inspect(req_method)}) is not in :allow_methods"
+      log(:rejected, opts, "Invalid preflight CORS request because the request " <>
+                           "method (#{inspect(req_method)}) is not in :allow_methods")
       false
     end
   end
@@ -614,7 +612,8 @@ defmodule Corsica do
     if non_allowed_headers == [] do
       true
     else
-      log :rejected, opts, "Invalid preflight CORS request because these headers were not allowed in :allow_headers: #{inspect(non_allowed_headers)}"
+      log(:rejected, opts, "Invalid preflight CORS request because these headers were " <>
+                           "not allowed in :allow_headers: #{inspect(non_allowed_headers)}")
       false
     end
   end
