@@ -8,9 +8,9 @@ defmodule Corsica.Mixfile do
   def project() do
     [app: :corsica,
      version: @version,
-     elixir: "~> 1.0",
+     elixir: "~> 1.3",
      deps: deps(),
-     description: @description(),
+     description: @description,
      name: "Corsica",
      source_url: "https://github.com/whatyouhide/corsica",
      package: package()]
@@ -21,8 +21,8 @@ defmodule Corsica.Mixfile do
   end
 
   defp deps() do
-    [{:cowboy, ">= 1.0.0"},
-     {:plug, ">= 0.9.0"},
+    [{:cowboy, "~> 1.0"},
+     {:plug, "~> 1.0"},
      {:ex_doc, "~> 0.15", only: :dev}]
   end
 
