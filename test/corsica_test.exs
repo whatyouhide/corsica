@@ -3,9 +3,14 @@ defmodule CorsicaTest do
   use Plug.Test
 
   import Corsica
+  import ExUnit.CaptureLog
 
   test "cors_req?/1" do
     conn = conn(:get, "/")
+    refute cors_req?(conn)
+    assert cors_req?(put_origin(conn, "http://example.com"))
+
+    conn = conn(:put, "/foo")
     refute cors_req?(conn)
     assert cors_req?(put_origin(conn, "http://example.com"))
   end
@@ -20,7 +25,7 @@ defmodule CorsicaTest do
            |> put_req_header("access-control-request-method", "GET")
            |> preflight_req?()
 
-    # Non-CORS requests aren't preflight requests, for sure.
+    # Non-CORS requests aren't preflight requests.
     refute conn(:get, "/") |> preflight_req?()
     refute conn(:options, "/")
            |> put_req_header("access-control-request-method", "GET")
@@ -73,6 +78,7 @@ defmodule CorsicaTest do
     assert allowed_origin?(conn, sanitize_opts(origins: ["http://foo.com"]))
     assert allowed_origin?(conn, sanitize_opts(origins: ["http://bar.com", "http://foo.com"]))
     assert allowed_origin?(conn, sanitize_opts(origins: ~r/(foo|bar)\.com$/))
+    assert allowed_origin?(conn, sanitize_opts(origins: [~r/(foo|bar)\.com$/]))
 
     Process.put(:corsica_accept_origin, true)
     assert allowed_origin?(conn, sanitize_opts(origins: {MyOriginChecker, :check}))
@@ -155,7 +161,7 @@ defmodule CorsicaTest do
     assert get_resp_header(conn, "access-control-expose-headers") == ["X-Foo, X-Bar"]
   end
 
-  test "put_cors_simple_resp_headers/2: 'origin' is added to the 'vary' header" do
+  test "put_cors_simple_resp_headers/2: \"origin\" is added to the \"vary\" header" do
     conn = conn(:get, "/foo") |> put_origin("http://foo.com")
 
     new_conn = put_cors_simple_resp_headers(conn, origins: "*")
@@ -170,11 +176,30 @@ defmodule CorsicaTest do
     new_conn = put_cors_simple_resp_headers(conn, origins: ["http://foo.com", "http://bar.com"])
     assert get_resp_header(new_conn, "vary") == ["origin"]
 
+    new_conn = put_cors_simple_resp_headers(conn, origins: ~r/.*/)
+    assert get_resp_header(new_conn, "vary") == ["origin"]
+
     new_conn =
       conn
       |> put_resp_header("vary", "content-length")
       |> put_cors_simple_resp_headers(origins: ["http://foo.com", "http://bar.com"])
     assert get_resp_header(new_conn, "vary") == ["origin", "content-length"]
+  end
+
+  test "put_cors_simple_resp_headers/2: :log option" do
+    conn = conn(:get, "/") |> put_origin("http://example.com")
+
+    assert capture_log([level: :info], fn ->
+      put_cors_simple_resp_headers(conn, log: [accepted: :info])
+    end) =~ ~s(Simple CORS request from Origin "http://example.com" is allowed)
+
+    assert capture_log([level: :info], fn ->
+      put_cors_simple_resp_headers(conn, log: [rejected: :info], origins: ["http://foo.com"])
+    end) =~ ~s(Simple CORS request from Origin "http://example.com" is not allowed)
+
+    assert capture_log([level: :info], fn ->
+      put_cors_simple_resp_headers(conn(:get, "/"), log: [invalid: :info])
+    end) =~ ~s(Request is not a CORS request because there is no Origin header)
   end
 
   test "put_cors_preflight_resp_headers/2: access-control-allow-methods" do
@@ -216,6 +241,42 @@ defmodule CorsicaTest do
   test "put_cors_preflight_resp_headers/2: does nothing to non-CORS requests" do
     conn = conn(:options, "/")
     assert conn == put_cors_preflight_resp_headers(conn, max_age: 1)
+  end
+
+  test "put_cors_preflight_resp_headers/2: :log option" do
+    assert capture_log([level: :info], fn ->
+      conn(:options, "/")
+      |> put_origin("http://example.com")
+      |> put_req_header("access-control-request-method", "PUT")
+      |> put_cors_preflight_resp_headers(log: [accepted: :info])
+    end) =~ ~s(Preflight CORS request from Origin "http://example.com" is allowed)
+
+    assert capture_log([level: :info], fn ->
+      conn(:options, "/")
+      |> put_origin("http://example.com")
+      |> put_req_header("access-control-request-method", "PUT")
+      |> put_cors_preflight_resp_headers(log: [rejected: :info], allow_methods: ["GET"])
+    end) =~ ~s{Invalid preflight CORS request because the request method ("PUT") is not in :allow_methods}
+
+    assert capture_log([level: :info], fn ->
+      conn(:options, "/")
+      |> put_origin("http://example.com")
+      |> put_req_header("access-control-request-method", "PUT")
+      |> put_req_header("access-control-request-headers", "x-foo, x-bar")
+      |> put_cors_preflight_resp_headers(log: [rejected: :info], allow_headers: ["x-nope"])
+    end) =~ ~s{Invalid preflight CORS request because these headers were not allowed in :allow_headers: x-foo, x-bar}
+
+    assert capture_log([level: :info], fn ->
+      conn(:options, "/")
+      |> put_origin("http://example.com")
+      |> put_req_header("access-control-request-method", "PUT")
+      |> put_cors_preflight_resp_headers(log: [rejected: :info], origins: ["http://foo.com"])
+    end) =~ ~s(Preflight CORS request from Origin "http://example.com" is not allowed because its origin is not allowed)
+
+    assert capture_log([level: :info], fn ->
+      conn(:options, "/")
+      |> put_cors_preflight_resp_headers(log: [invalid: :info])
+    end) =~ ~s(Request is not a preflight CORS request)
   end
 
   test "send_preflight_resp/4: valid preflight request" do
