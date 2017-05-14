@@ -105,7 +105,7 @@ defmodule Corsica.Router do
     routes = Module.get_attribute(env.module, :corsica_routes) |> Enum.reverse()
     quote bind_quoted: [global_opts: Macro.escape(global_opts), routes: routes] do
       for {route, opts} <- routes do
-        opts = Keyword.merge(global_opts, opts)
+        opts = Corsica.sanitize_opts(Keyword.merge(global_opts, opts))
 
         # Plug.Router wants this.
         route = route <> (if String.ends_with?(route, "*"), do: "_", else: "")

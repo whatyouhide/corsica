@@ -268,11 +268,7 @@ defmodule Corsica do
 
   # Public so that it can be called from `Corsica.Router` (and for testing too).
   @doc false
-  def sanitize_opts(%Options{} = opts) do
-    opts
-  end
-
-  def sanitize_opts(opts) do
+  def sanitize_opts(opts) when is_list(opts) do
     struct(Options, opts)
     |> Map.update!(:allow_methods, fn methods -> Enum.map(methods, &String.upcase/1) end)
     |> Map.update!(:allow_headers, fn headers -> Enum.map(headers, &String.downcase/1) end)
@@ -362,7 +358,13 @@ defmodule Corsica do
       end
 
   """
-  def send_preflight_resp(%Conn{} = conn, status \\ 200, body \\ "", opts) do
+  def send_preflight_resp(conn, status \\ 200, body \\ "", opts)
+
+  def send_preflight_resp(%Conn{} = conn, status, body, opts) when is_list(opts) do
+    send_preflight_resp(conn, status, body, sanitize_opts(opts))
+  end
+
+  def send_preflight_resp(%Conn{} = conn, status, body, %Options{} = opts) do
     conn
     |> put_cors_preflight_resp_headers(opts)
     |> halt()
@@ -402,9 +404,13 @@ defmodule Corsica do
       |> send_resp(200, "Hello!")
 
   """
-  def put_cors_simple_resp_headers(%Conn{} = conn, opts) do
-    opts = sanitize_opts(opts)
+  def put_cors_simple_resp_headers(conn, opts)
 
+  def put_cors_simple_resp_headers(%Conn{} = conn, opts) when is_list(opts) do
+    put_cors_simple_resp_headers(conn, sanitize_opts(opts))
+  end
+
+  def put_cors_simple_resp_headers(%Conn{} = conn, %Options{} = opts) do
     cond do
       not cors_req?(conn) ->
         log :invalid, opts, "Request is not a CORS request because there is no Origin header"
@@ -457,9 +463,13 @@ defmodule Corsica do
       ]
 
   """
-  def put_cors_preflight_resp_headers(%Conn{} = conn, opts) do
-    opts = sanitize_opts(opts)
+  def put_cors_preflight_resp_headers(conn, opts)
 
+  def put_cors_preflight_resp_headers(%Conn{} = conn, opts) when is_list(opts) do
+    put_cors_preflight_resp_headers(conn, sanitize_opts(opts))
+  end
+
+  def put_cors_preflight_resp_headers(%Conn{} = conn, %Options{} = opts) do
     cond do
       not preflight_req?(conn) ->
         log :invalid, opts, "Request is not a preflight CORS request (has no Origin header," <>
