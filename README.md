@@ -54,6 +54,23 @@ defmodule MyApp.Endpoint do
 end
 ```
 
+Corsica won't set any headers unless it receive proper request header. For example, to test `access-control-allow-origin` response header you must set `Origin` header in request:
+
+```shell
+curl localhost:4000 -H "content-type: application/json" -H "Origin: http://foo.com" -i
+```
+
+```http
+HTTP/1.1 200 OK
+server: Cowboy
+date: Wed, 28 Dec 2016 08:58:18 GMT
+content-length: 2
+content-type: application/json; charset=utf-8
+cache-control: max-age=0, private, must-revalidate
+x-request-id: hi3t1rcprkqeh34e4iq6ns8vo2renvoo
+access-control-allow-origin: http://foo.com
+```
+
 To gain finer control over which resources are CORS-enabled and with what
 options, you can use the `Corsica.Router` module:
 
