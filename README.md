@@ -75,6 +75,11 @@ defmodule MyApp.Endpoint do
 end
 ```
 
+Wildcards can be used in the origins specification, by using regex:
+```elixir
+    origins: [~r{//foo.com}, ~r{//localhost}]
+```
+
 This is only a brief overview of what Corsica can do. To find out more, head to
 the [online documentation][docs].
 
