@@ -49,7 +49,7 @@ plug, just plug it into your plug pipeline:
 ```elixir
 defmodule MyApp.Endpoint do
   plug Logger
-  plug Corsica, origins: "http://foo.com"
+  plug Corsica, origins: "http://foo.com" # default is "*" which allows any origin
   plug MyApp.Router
 end
 ```
@@ -89,6 +89,20 @@ the `Origin` header:
 ```sh
 curl localhost:4000 -v -H "Origin: http://foo.com"
 ```
+
+## Common Issues
+
+### Browser gives 'Origin ... is therefore not allowed access' error
+
+When attempting to do a CORS request to your Elixir server, your browser might log the following error in the console:
+
+> Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. Origin 'example.com' is therefore not allowed access.
+
+This is a generic response that means your Elixir server is not allowing the CORS request. Most likely this is because of one of two things:
+
+1. **The server doesn't recognize the origin (the browser's current URL) as an allowed origin.** Check the `origins:` option on the Plug or Router function, and make sure it allows whatever site the browser is trying do the CORS for. For example, if you are running a local javascript app on `localhost:8100`, then the `origins:` option must contain `localhost:8100` (or "\*" to allow anything).
+2. **The server doesn't allow the headers that the client is requesting.** The client/browser can ask to use certain headers in the `Allow-Control-Request-Headers` header on the preflight request. This would be something like `content-type` or `accepts`. The server (ie. Corsica) must respond to the preflight request and allow those headers by specifying them in the response's `Access-Control-Allow-Headers` header.  You can use the `allow_headers:` option on the Plug or the Router function to do this.
+
 
 ## Contributing
 
