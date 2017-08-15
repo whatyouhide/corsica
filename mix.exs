@@ -32,11 +32,17 @@ defmodule Corsica.Mixfile do
   end
 
   defp deps() do
-    [
+    deps = [
       {:cowboy, "~> 1.0"},
       {:plug, "~> 1.0"},
       {:ex_doc, "~> 0.15", only: :dev},
     ]
+
+    if stream_data?() do
+      [{:stream_data, "~> 0.1.1", only: :test}] ++ deps
+    else
+      deps
+    end
   end
 
   defp package() do
@@ -45,5 +51,9 @@ defmodule Corsica.Mixfile do
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/whatyouhide/corsica"},
     ]
+  end
+
+  defp stream_data?() do
+    Version.compare(System.version(), "1.5.0") in [:eq, :gt]
   end
 end

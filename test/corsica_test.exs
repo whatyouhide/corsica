@@ -5,6 +5,7 @@ defmodule CorsicaTest do
   import Corsica
   import ExUnit.CaptureLog
 
+  @tag :replaced_by_property
   test "cors_req?/1" do
     conn = conn(:get, "/")
     refute cors_req?(conn)
@@ -15,6 +16,7 @@ defmodule CorsicaTest do
     assert cors_req?(put_origin(conn, "http://example.com"))
   end
 
+  @tag :replaced_by_property
   test "preflight_req?/1" do
     refute conn(:get, "/") |> put_origin("http://example.com") |> preflight_req?()
     refute conn(:head, "/") |> put_origin("http://example.com") |> preflight_req?()
