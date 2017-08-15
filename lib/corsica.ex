@@ -241,6 +241,8 @@ defmodule Corsica do
   ]
 
   defmodule Options do
+    @moduledoc false
+
     defstruct [
       :max_age,
       :expose_headers,
