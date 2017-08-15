@@ -78,6 +78,8 @@ end
 This is only a brief overview of what Corsica can do. To find out more, head to
 the [online documentation][docs].
 
+### Common issues
+
 Note that Corsica is compliant with the W3C CORS specification, which means CORS
 response headers are not sent for invalid CORS requests. The documentation goes
 into more detail about this, but it's worth noting so that the first impression
@@ -89,6 +91,8 @@ the `Origin` header:
 ```sh
 curl localhost:4000 -v -H "Origin: http://foo.com"
 ```
+
+There is a [dedicated page in the documentation](https://hexdocs.pm/corsica/common-issues.html) that covers some of the common issues with CORS (and Corsica in part).
 
 ## Contributing
 
