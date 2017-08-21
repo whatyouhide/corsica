@@ -46,7 +46,7 @@ if Code.ensure_compiled?(PropertyTest) do
         end
 
       gen all method <- method_generator,
-              path <- map(alphanumeric_string(), &("/" <> &1)) do
+              path <- map(string(:alphanumeric), &("/" <> &1)) do
         conn(method, path)
       end
     end
@@ -56,7 +56,7 @@ if Code.ensure_compiled?(PropertyTest) do
 
       scheme = one_of([constant("http"), constant("https")])
 
-      map({scheme, alphanumeric_string(), alphanumeric_string()}, fn {scheme, domain, tld} ->
+      map({scheme, string(:alphanumeric), string(:alphanumeric)}, fn {scheme, domain, tld} ->
         "#{scheme}://#{domain}.#{tld}"
       end)
     end
