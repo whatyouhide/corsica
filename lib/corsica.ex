@@ -116,9 +116,11 @@ defmodule Corsica do
     * `:allow_headers` - a list of headers (as binaries). Sets the value of
       the `access-control-allow-headers` header used with preflight requests.
       Defaults to `[]` (no headers are allowed).
+
     * `:allow_methods` - is a list of HTTP methods (as binaries). Sets the value
       of the `access-control-allow-methods` header used with preflight requests.
       Defaults to `["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"]`.
+
     * `:allow_credentials` - is a boolean. If `true`, sends the
       `access-control-allow-credentials` with value `true`. If `false`, prevents
       that header from being sent at all. If `:origins` is set to `"*"` and
@@ -126,14 +128,17 @@ defmodule Corsica do
       `access-control-allow-origin` header will always be the value of the
       `origin` request header (as per the W3C CORS specification) and not `*`.
       Defaults to `false`.
+
     * `:expose_headers` - is a list of headers (as binaries). Sets the value of
       the `access-control-expose-headers` response header. This option *does
       not* have a default value; if it's not provided, the
       `access-control-expose-headers` header is not sent at all.
+
     * `:max_age` - is an integer or a binary. Sets the value of the
       `access-control-max-age` header used with preflight requests. This option
       *does not* have a default value; if it's not provided, the
       `access-control-max-age` header is not sent at all.
+
     * `:log` - see the "Logging" section below. Defaults to `false`.
 
   ## Responding to preflight requests
