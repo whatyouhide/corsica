@@ -113,15 +113,23 @@ defmodule Corsica do
   `Corsica.Router.resource/2` and to the `Corsica` plug (along with their default
   values) are:
 
-    * `:allow_headers` - a list of headers (as binaries). Sets the value of
-      the `access-control-allow-headers` header used with preflight requests.
-      Defaults to `[]` (no headers are allowed).
+    * `:allow_methods` - a list of HTTP methods (as binaries). This is the list
+      of methods allowed in the `access-control-request-method` header of preflight
+      requests. If the method requested by the preflight request is in this list or is
+      a *simple method* (`HEAD`, `GET`, or `POST`), then that method is always allowed.
+      The methods specified by this option are returned in the `access-control-allow-methods`
+      response header. Defaults to `["PUT", "PATCH", "DELETE"]` (which means these methods
+      are allowed alongside simple methods).
 
-    * `:allow_methods` - is a list of HTTP methods (as binaries). Sets the value
-      of the `access-control-allow-methods` header used with preflight requests.
-      Defaults to `["HEAD", "GET", "POST", "PUT", "PATCH", "DELETE"]`.
+    * `:allow_headers` - a list of headers (as binaries). This is the list
+      of headers allowed in the `access-control-request-headers` header of preflight
+      requests. If a header requested by the preflight request is in this list or is a
+      *simple header* (`Accept`, `Accept-Language`, or `Content-Language`), then that
+      header is always allowed. The headers specified by this option are returned in the
+      `access-control-allow-headers` response header. Defaults to `[]` (which means only
+      the simple headers are allowed).
 
-    * `:allow_credentials` - is a boolean. If `true`, sends the
+    * `:allow_credentials` - a boolean. If `true`, sends the
       `access-control-allow-credentials` with value `true`. If `false`, prevents
       that header from being sent at all. If `:origins` is set to `"*"` and
       `:allow_credentials` is set to `true`, then the value of the
@@ -129,12 +137,12 @@ defmodule Corsica do
       `origin` request header (as per the W3C CORS specification) and not `*`.
       Defaults to `false`.
 
-    * `:expose_headers` - is a list of headers (as binaries). Sets the value of
+    * `:expose_headers` - a list of headers (as binaries). Sets the value of
       the `access-control-expose-headers` response header. This option *does
       not* have a default value; if it's not provided, the
       `access-control-expose-headers` header is not sent at all.
 
-    * `:max_age` - is an integer or a binary. Sets the value of the
+    * `:max_age` - an integer or a binary. Sets the value of the
       `access-control-max-age` header used with preflight requests. This option
       *does not* have a default value; if it's not provided, the
       `access-control-max-age` header is not sent at all.
@@ -245,6 +253,9 @@ defmodule Corsica do
     accepted: :debug,
   ]
 
+  @simple_methods ~w(GET HEAD POST)
+  @simple_headers ~w(accept accept-language content-language)
+
   defmodule Options do
     @moduledoc false
 
@@ -252,7 +263,7 @@ defmodule Corsica do
       :max_age,
       :expose_headers,
       origins: "*",
-      allow_methods: ~w(HEAD GET POST PUT PATCH DELETE),
+      allow_methods: ~w(PUT PATCH DELETE),
       allow_headers: [],
       allow_credentials: false,
       log: false,
@@ -601,7 +612,7 @@ defmodule Corsica do
     # request.
     [req_method | _] = get_req_header(conn, "access-control-request-method")
 
-    if req_method in allow_methods do
+    if req_method in @simple_methods or req_method in allow_methods do
       true
     else
       log(:rejected, opts, "Invalid preflight CORS request because the request " <>
@@ -615,7 +626,7 @@ defmodule Corsica do
       for req_headers <- get_req_header(conn, "access-control-request-headers"),
           req_headers = String.downcase(req_headers),
           req_header <- Plug.Conn.Utils.list(req_headers),
-          not(req_header in allow_headers),
+          not(req_header in @simple_headers or req_header in allow_headers),
           do: req_header
 
     if non_allowed_headers == [] do

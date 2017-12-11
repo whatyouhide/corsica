@@ -108,16 +108,29 @@ defmodule CorsicaTest do
 
   describe "allowed_preflight?/2" do
     test "with allowed requests" do
-      conn =
-        conn(:get, "/")
-        |> put_origin("http://foo.com")
-        |> put_req_header("access-control-request-method", "PUT")
-      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT PATCH)))
-      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(put)))
-      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT), allow_headers: ~w(X-Foo)))
+      conn = put_origin(conn(:get, "/"), "http://foo.com")
 
-      conn = conn |> put_req_header("access-control-request-headers", "X-Foo, X-Bar")
+      conn = put_req_header(conn, "access-control-request-method", "PATCH")
+      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT PATCH)))
+      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(patch)))
+      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PATCH), allow_headers: ~w(X-Foo)))
+
+      # "Simple methods" are always allowed.
+      conn = put_req_header(conn, "access-control-request-method", "POST")
+      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w()))
+
+      conn =
+        conn
+        |> put_req_header("access-control-request-method", "PUT")
+        |> put_req_header("access-control-request-headers", "X-Foo, X-Bar")
       assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT), allow_headers: ~w(X-Bar x-foo)))
+
+      # "Simple headers" are always allowed.
+      conn =
+        conn
+        |> put_req_header("access-control-request-method", "PUT")
+        |> put_req_header("access-control-request-headers", "Accept, Content-Language")
+      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT), allow_headers: ~w()))
     end
 
     test "with non-allowed requests" do
