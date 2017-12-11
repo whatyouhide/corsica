@@ -113,21 +113,25 @@ defmodule Corsica do
   `Corsica.Router.resource/2` and to the `Corsica` plug (along with their default
   values) are:
 
-    * `:allow_methods` - a list of HTTP methods (as binaries). This is the list
+    * `:allow_methods` - a list of HTTP methods (as binaries) or `:all`. This is the list
       of methods allowed in the `access-control-request-method` header of preflight
       requests. If the method requested by the preflight request is in this list or is
       a *simple method* (`HEAD`, `GET`, or `POST`), then that method is always allowed.
       The methods specified by this option are returned in the `access-control-allow-methods`
       response header. Defaults to `["PUT", "PATCH", "DELETE"]` (which means these methods
-      are allowed alongside simple methods).
+      are allowed alongside simple methods). If the value of this option is `:all`, all
+      request methods are allowed and only the method in `access-control-request-method` is
+      returned as the value of the `access-control-allow-methods` header.
 
-    * `:allow_headers` - a list of headers (as binaries). This is the list
+    * `:allow_headers` - a list of headers (as binaries) or `:all`. This is the list
       of headers allowed in the `access-control-request-headers` header of preflight
       requests. If a header requested by the preflight request is in this list or is a
       *simple header* (`Accept`, `Accept-Language`, or `Content-Language`), then that
       header is always allowed. The headers specified by this option are returned in the
       `access-control-allow-headers` response header. Defaults to `[]` (which means only
-      the simple headers are allowed).
+      the simple headers are allowed). If the value of this option is `:all`, all request
+      headers are allowed and only the headers in `access-control-request-headers` are
+      returned as the value of the `access-control-allow-headers` header.
 
     * `:allow_credentials` - a boolean. If `true`, sends the
       `access-control-allow-credentials` with value `true`. If `false`, prevents
@@ -288,8 +292,14 @@ defmodule Corsica do
   @doc false
   def sanitize_opts(opts) when is_list(opts) do
     struct(Options, opts)
-    |> Map.update!(:allow_methods, fn methods -> Enum.map(methods, &String.upcase/1) end)
-    |> Map.update!(:allow_headers, fn headers -> Enum.map(headers, &String.downcase/1) end)
+    |> Map.update!(:allow_methods, fn
+      :all -> :all
+      methods -> Enum.map(methods, &String.upcase/1)
+    end)
+    |> Map.update!(:allow_headers, fn
+      :all -> :all
+      headers -> Enum.map(headers, &String.downcase/1)
+    end)
     |> Map.update!(:log, fn levels -> levels && Keyword.merge(@default_log_levels, levels) end)
     |> maybe_update_option(:max_age, &to_string/1)
     |> maybe_update_option(:expose_headers, &Enum.join(&1, ", "))
@@ -550,11 +560,28 @@ defmodule Corsica do
     do: %{conn | resp_headers: [{"vary", "origin"} | conn.resp_headers]}
 
   defp put_allow_methods_header(conn, %Options{allow_methods: allow_methods}) do
-    put_resp_header(conn, "access-control-allow-methods", Enum.join(allow_methods, ", "))
+    value =
+      if allow_methods == :all do
+        hd(get_req_header(conn, "access-control-request-method"))
+      else
+        Enum.join(allow_methods, ", ")
+      end
+
+    put_resp_header(conn, "access-control-allow-methods", value)
   end
 
   defp put_allow_headers_header(conn, %Options{allow_headers: allow_headers}) do
-    put_resp_header(conn, "access-control-allow-headers", Enum.join(allow_headers, ", "))
+    allowed_headers =
+      if allow_headers == :all do
+        for req_headers <- get_req_header(conn, "access-control-request-headers"),
+            req_headers = String.downcase(req_headers),
+            req_header <- Plug.Conn.Utils.list(req_headers),
+            do: req_header
+      else
+        allow_headers
+      end
+
+    put_resp_header(conn, "access-control-allow-headers", Enum.join(allowed_headers, ", "))
   end
 
   defp put_max_age_header(conn, %Options{max_age: max_age}) do
@@ -606,6 +633,10 @@ defmodule Corsica do
     allowed_request_method?(conn, opts) and allowed_request_headers?(conn, opts)
   end
 
+  defp allowed_request_method?(_conn, %Options{allow_methods: :all}) do
+    true
+  end
+
   defp allowed_request_method?(conn, %Options{allow_methods: allow_methods} = opts) do
     # We can safely assume there's an Access-Control-Request-Method header
     # otherwise the request wouldn't have been identified as a preflight
@@ -619,6 +650,10 @@ defmodule Corsica do
                            "method (#{inspect(req_method)}) is not in :allow_methods")
       false
     end
+  end
+
+  defp allowed_request_headers?(_conn, %Options{allow_headers: :all}) do
+    true
   end
 
   defp allowed_request_headers?(conn, %Options{allow_headers: allow_headers} = opts) do
