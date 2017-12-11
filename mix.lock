@@ -6,4 +6,4 @@
   "plug": {:hex, :plug, "1.3.3", "d9be189924379b4e9d470caef87380d09549aea1ceafe6a0d41292c8c317c923", [:mix], [{:cowboy, "~> 1.0.1 or ~> 1.1", [hex: :cowboy, optional: true]}, {:mime, "~> 1.0", [hex: :mime, optional: false]}]},
   "poison": {:hex, :poison, "1.5.0"},
   "ranch": {:hex, :ranch, "1.3.2", "e4965a144dc9fbe70e5c077c65e73c57165416a901bd02ea899cfd95aa890986", [:rebar3], []},
-  "stream_data": {:hex, :stream_data, "0.2.0", "887b7701cd4ea235e0d704ce60f86096ff5754dae55c3ead4e1d43f152a9239e", [:mix], []}}
+  "stream_data": {:hex, :stream_data, "0.4.0", "128c01bfd0fae0108d169eee1772aeed6958604f8782abc2d6e11da4e52468b0", [:mix], [], "hexpm"}}

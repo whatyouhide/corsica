@@ -1,10 +1,10 @@
-if Code.ensure_compiled?(PropertyTest) do
+if Code.ensure_compiled?(ExUnitProperties) do
   defmodule Corsica.PropertiesTest do
     use ExUnit.Case, async: true
+    use ExUnitProperties
     use Plug.Test
 
     import Corsica
-    import PropertyTest
 
     property "cors_req?/1" do
       check all conn <- conn(),
