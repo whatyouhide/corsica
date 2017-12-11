@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.1.0
+
+## Bug fixes
+
+* Correctly allow "simple methods" and "simple headers" in preflight requests. See the
+  documentation for the `:allow_methods` and `:allow_headers` options.
+
+## New features
+
+* Allow `:all` as value for the `:allow_methods` and `:allow_headers` options.
+
 ## v1.0.0
 
 * Drop support for older Elixir versions and require Elixir `~> 1.3`
