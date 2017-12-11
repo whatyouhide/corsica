@@ -67,10 +67,12 @@ defmodule Corsica.RouterTest do
   end
 
   test "preflight requests" do
-    conn = conn(:options, "/preflight")
-            |> put_origin("foo.com")
-            |> put_req_header("access-control-request-method", "PUT")
-            |> Pipeline.call([])
+    conn =
+      conn(:options, "/preflight")
+      |> put_origin("foo.com")
+      |> put_req_header("access-control-request-method", "PUT")
+      |> Pipeline.call([])
+
     assert conn.state == :sent
     assert conn.resp_body == ""
     assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
@@ -78,10 +80,12 @@ defmodule Corsica.RouterTest do
   end
 
   test "preflight requests on origin as regex" do
-    conn = conn(:options, "/preflight")
-            |> put_origin("http://bar.foo.com")
-            |> put_req_header("access-control-request-method", "PUT")
-            |> OriginRegexPipeline.call([])
+    conn =
+      conn(:options, "/preflight")
+      |> put_origin("http://bar.foo.com")
+      |> put_req_header("access-control-request-method", "PUT")
+      |> OriginRegexPipeline.call([])
+
     assert conn.state == :sent
     assert conn.resp_body == ""
     assert get_resp_header(conn, "access-control-allow-origin") == ["http://bar.foo.com"]

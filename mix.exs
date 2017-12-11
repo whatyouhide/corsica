@@ -22,8 +22,8 @@ defmodule Corsica.Mixfile do
         main: "Corsica",
         source_ref: "v#{@version}",
         source_url: "https://github.com/whatyouhide/corsica",
-        extras: ["README.md", "pages/Common issues.md"],
-      ],
+        extras: ["README.md", "pages/Common issues.md"]
+      ]
     ]
   end
 
@@ -35,7 +35,7 @@ defmodule Corsica.Mixfile do
     deps = [
       {:cowboy, "~> 1.0"},
       {:plug, "~> 1.0"},
-      {:ex_doc, "~> 0.15", only: :dev},
+      {:ex_doc, "~> 0.15", only: :dev}
     ]
 
     if stream_data?() do
@@ -49,7 +49,7 @@ defmodule Corsica.Mixfile do
     [
       maintainers: ["Andrea Leopardi"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/whatyouhide/corsica"},
+      links: %{"GitHub" => "https://github.com/whatyouhide/corsica"}
     ]
   end
 

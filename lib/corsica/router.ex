@@ -117,6 +117,7 @@ defmodule Corsica.Router do
 
         options route do
           conn = var!(conn)
+
           if Corsica.preflight_req?(conn) do
             Corsica.send_preflight_resp(conn, unquote(opts))
           else
@@ -126,6 +127,7 @@ defmodule Corsica.Router do
 
         match route do
           conn = var!(conn)
+
           if Corsica.cors_req?(conn) do
             Corsica.put_cors_simple_resp_headers(conn, unquote(opts))
           else

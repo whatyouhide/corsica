@@ -8,7 +8,7 @@ if Code.ensure_compiled?(ExUnitProperties) do
 
     property "cors_req?/1" do
       check all conn <- conn(),
-            origin <- url() do
+                origin <- url() do
         assert cors_req?(conn) == false
         assert cors_req?(put_origin(conn, origin)) == true
       end
@@ -41,6 +41,7 @@ if Code.ensure_compiled?(ExUnitProperties) do
         cond do
           method = options[:method] ->
             constant(method)
+
           true ->
             request_method()
         end
