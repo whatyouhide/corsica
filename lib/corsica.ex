@@ -67,7 +67,7 @@ defmodule Corsica do
   using a Corsica-based router or when plugging `Corsica` in a plug pipeline.
 
   `:origins` can be a single value or a list of values. `"*"` can only appear as
-  a single value. The default value is `"*"`.  The origin of a request
+  a single value. The default value is `[]`.  The origin of a request
   (specified by the `"origin"` request header) will be considered a valid origin
   if it "matches" at least one of the origins specified in `:origins`. What
   "matches" means depends on the type of origin. Origins can be:
@@ -266,7 +266,7 @@ defmodule Corsica do
     defstruct [
       :max_age,
       :expose_headers,
-      origins: "*",
+      origins: [],
       allow_methods: ~w(PUT PATCH DELETE),
       allow_headers: [],
       allow_credentials: false,
