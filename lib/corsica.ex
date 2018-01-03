@@ -63,11 +63,10 @@ defmodule Corsica do
 
   ## Origins
 
-  Allowed origins can be specified by passing the `:origins` options either when
+  Allowed origins must be specified by passing the `:origins` options either when
   using a Corsica-based router or when plugging `Corsica` in a plug pipeline.
 
-  `:origins` can be a single value or a list of values. `"*"` can only appear as
-  a single value. The default value is `[]`.  The origin of a request
+  `:origins` can be a single value or a list of values. The origin of a request
   (specified by the `"origin"` request header) will be considered a valid origin
   if it "matches" at least one of the origins specified in `:origins`. What
   "matches" means depends on the type of origin. Origins can be:
@@ -81,7 +80,7 @@ defmodule Corsica do
 
   For example:
 
-      # Matches everything
+      # Matches everything. Very insecure. Never use this in production.
       plug Corsica, origins: "*"
 
       # Matches one of the given origins
@@ -89,6 +88,11 @@ defmodule Corsica do
 
       # Matches the given regex
       plug Corsica, origins: ~r{^https?://(.*\.?)foo\.com$}
+
+      # Raises an ArgumentError because `:origins` is required
+      plug Corsica
+
+  `"*"` can only appear as a single value.
 
   ### The value of the "access-control-allow-origin" header
 
@@ -266,7 +270,7 @@ defmodule Corsica do
     defstruct [
       :max_age,
       :expose_headers,
-      origins: [],
+      :origins,
       allow_methods: ~w(PUT PATCH DELETE),
       allow_headers: [],
       allow_credentials: false,
@@ -278,6 +282,7 @@ defmodule Corsica do
 
   def init(opts) do
     sanitize_opts(opts)
+    |> require_origins
   end
 
   def call(%Conn{} = conn, %Options{} = opts) do
@@ -303,6 +308,16 @@ defmodule Corsica do
     |> Map.update!(:log, fn levels -> levels && Keyword.merge(@default_log_levels, levels) end)
     |> maybe_update_option(:max_age, &to_string/1)
     |> maybe_update_option(:expose_headers, &Enum.join(&1, ", "))
+  end
+
+  defp require_origins(opts) do
+    cond do
+      opts.origins == nil ->
+        raise ArgumentError, message: "`:origins` option is required. It should a an array of domains or a string of a domain that you control. For example `origins: [\"https://app.example.com\", \"https://www.example.com\"]`. If you don't know which setting to use \"*\" will get you started, but it is VERY INSECURE. \"*\" completely disables all protections that CORS gives you, so you should never use \"*\" in a production environment. For more details see https://www.owasp.org/index.php/HTML5_Security_Cheat_Sheet#Cross_Origin_Resource_Sharing"
+      true ->
+        opts
+    end
+
   end
 
   defp maybe_update_option(opts, option, update_fun) do

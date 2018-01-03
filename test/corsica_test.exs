@@ -35,6 +35,17 @@ defmodule CorsicaTest do
            |> preflight_req?()
   end
 
+  describe "init/1" do
+    test "raises an ArgumentError if :origins is not set" do
+      assert_raise ArgumentError, ~r/required/, fn ->
+        init([])
+      end
+    end
+    test "does not raises an ArgumentError if :origins is set" do
+      init(origins: "https://example.com")
+    end
+  end
+
   describe "sanitize_opts/1" do
     test ":max_age" do
       assert sanitize_opts(max_age: 600).max_age == "600"
@@ -50,7 +61,9 @@ defmodule CorsicaTest do
       assert sanitize_opts(origins: ["foo.bar", ~r/.*/, {MyMod, :my_fun}]).origins ==
                ["foo.bar", ~r/.*/, {MyMod, :my_fun}]
 
-      assert sanitize_opts([]).origins == []
+      assert sanitize_opts([]).origins == nil
+      assert sanitize_opts(origins: "*").origins == "*"
+      assert sanitize_opts(origins: []).origins == []
     end
 
     test ":allow_methods" do
