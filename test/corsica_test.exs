@@ -41,6 +41,11 @@ defmodule CorsicaTest do
         init([])
       end
     end
+    test "raises an ArgumentError if :origins is set to nil" do
+      assert_raise ArgumentError, ~r/required/, fn ->
+        init(origins: nil)
+      end
+    end
     test "does not raises an ArgumentError if :origins is set" do
       init(origins: "https://example.com")
     end

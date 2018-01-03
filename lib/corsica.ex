@@ -281,7 +281,8 @@ defmodule Corsica do
   # Plug callbacks.
 
   def init(opts) do
-    sanitize_opts(opts)
+    opts
+    |> sanitize_opts
     |> require_origins
   end
 
@@ -310,15 +311,11 @@ defmodule Corsica do
     |> maybe_update_option(:expose_headers, &Enum.join(&1, ", "))
   end
 
-  defp require_origins(opts) do
-    cond do
-      opts.origins == nil ->
-        raise ArgumentError, message: "`:origins` option is required. It should a an array of domains or a string of a domain that you control. For example `origins: [\"https://app.example.com\", \"https://www.example.com\"]`. If you don't know which setting to use \"*\" will get you started, but it is VERY INSECURE. \"*\" completely disables all protections that CORS gives you, so you should never use \"*\" in a production environment. For more details see https://www.owasp.org/index.php/HTML5_Security_Cheat_Sheet#Cross_Origin_Resource_Sharing"
-      true ->
-        opts
-    end
-
+  defp require_origins(%Options{origins: nil}) do
+    raise ArgumentError, message: "`:origins` option is required. It should a an array of domains or a string of a domain that you control. For example `origins: [\"https://app.example.com\", \"https://www.example.com\"]`. If you don't know which setting to use \"*\" will get you started, but it is VERY INSECURE. \"*\" completely disables all protections that CORS gives you, so you should never use \"*\" in a production environment. For more details see https://www.owasp.org/index.php/HTML5_Security_Cheat_Sheet#Cross_Origin_Resource_Sharing"
   end
+
+  defp require_origins(opts), do: opts
 
   defp maybe_update_option(opts, option, update_fun) do
     if value = Map.get(opts, option) do
