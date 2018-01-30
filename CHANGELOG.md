@@ -2,11 +2,17 @@
 
 ## v1.1.0
 
-## Bug fixes
+### Improvements
+
+  * Warn if the `:origins` option is not explicitly provided. This warning will become an error in future Corsica versions.
+
+## v1.1.0
+
+### Bug fixes
 
   * Correctly allow "simple methods" and "simple headers" in preflight requests. See the documentation for the `:allow_methods` and `:allow_headers` options.
 
-## Improvements
+### Improvements
 
   * Allow `:all` as value for the `:allow_methods` and `:allow_headers` options.
 
