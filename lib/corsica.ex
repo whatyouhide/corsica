@@ -64,7 +64,8 @@ defmodule Corsica do
   ## Origins
 
   Allowed origins must be specified by passing the `:origins` options either when
-  using a Corsica-based router or when plugging `Corsica` in a plug pipeline.
+  using a Corsica-based router or when plugging `Corsica` in a plug pipeline. If
+  `:origins` is not provided, an error will be raised.
 
   `:origins` can be a single value or a list of values. The origin of a request
   (specified by the `"origin"` request header) will be considered a valid origin
@@ -78,9 +79,14 @@ defmodule Corsica do
       origin as its only argument; if it returns `true` the origin is accepted,
       if it returns `false` the origin is not accepted
 
+  The value `"*"` can also be used to match every origin and reply with `*` as
+  the value of the `access-control-allow-origin` header. If `"*"` is used, it
+  must be used as the only value of `:origins` (that is, it can't be used inside
+  a list of accepted origins).
+
   For example:
 
-      # Matches everything. Very insecure. Never use this in production.
+      # Matches everything.
       plug Corsica, origins: "*"
 
       # Matches one of the given origins
@@ -88,11 +94,6 @@ defmodule Corsica do
 
       # Matches the given regex
       plug Corsica, origins: ~r{^https?://(.*\.?)foo\.com$}
-
-      # Raises an ArgumentError because `:origins` is required
-      plug Corsica
-
-  `"*"` can only appear as a single value.
 
   ### The value of the "access-control-allow-origin" header
 
@@ -281,9 +282,7 @@ defmodule Corsica do
   # Plug callbacks.
 
   def init(opts) do
-    opts
-    |> sanitize_opts
-    |> require_origins
+    sanitize_opts(opts)
   end
 
   def call(%Conn{} = conn, %Options{} = opts) do
@@ -297,7 +296,9 @@ defmodule Corsica do
   # Public so that it can be called from `Corsica.Router` (and for testing too).
   @doc false
   def sanitize_opts(opts) when is_list(opts) do
-    struct(Options, opts)
+    opts
+    |> require_origins_option()
+    |> to_options_struct()
     |> Map.update!(:allow_methods, fn
          :all -> :all
          methods -> Enum.map(methods, &String.upcase/1)
@@ -311,11 +312,20 @@ defmodule Corsica do
     |> maybe_update_option(:expose_headers, &Enum.join(&1, ", "))
   end
 
-  defp require_origins(%Options{origins: nil}) do
-    raise ArgumentError, message: "`:origins` option is required. It should a an array of domains or a string of a domain that you control. For example `origins: [\"https://app.example.com\", \"https://www.example.com\"]`. If you don't know which setting to use \"*\" will get you started, but it is VERY INSECURE. \"*\" completely disables all protections that CORS gives you, so you should never use \"*\" in a production environment. For more details see https://www.owasp.org/index.php/HTML5_Security_Cheat_Sheet#Cross_Origin_Resource_Sharing"
-  end
+  defp to_options_struct(opts), do: struct(Options, opts)
 
-  defp require_origins(opts), do: opts
+  defp require_origins_option(opts) do
+    case Keyword.fetch(opts, :origins) do
+      {:ok, _} ->
+        opts
+
+      :error ->
+        raise ArgumentError,
+              "the :origins option is required. It should be \"*\" (which might be insecure), " <>
+                "a string, a regex, or a list of strings or regexes. Check the documentation " <>
+                "for more information."
+    end
+  end
 
   defp maybe_update_option(opts, option, update_fun) do
     if value = Map.get(opts, option) do
