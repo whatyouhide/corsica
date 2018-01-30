@@ -3,6 +3,7 @@ defmodule CorsicaTest do
   use Plug.Test
 
   import Corsica
+  import ExUnit.CaptureIO
   import ExUnit.CaptureLog
 
   @tag :replaced_by_property
@@ -49,9 +50,8 @@ defmodule CorsicaTest do
     end
 
     test ":origins is required" do
-      assert_raise ArgumentError, ~r/the :origins option is required/, fn ->
-        sanitize_opts([])
-      end
+      assert capture_io(:stderr, fn -> sanitize_opts([]) end) =~
+               "the :origins option should be specified"
     end
 
     test "value of :origins" do

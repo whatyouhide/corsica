@@ -315,16 +315,16 @@ defmodule Corsica do
   defp to_options_struct(opts), do: struct(Options, opts)
 
   defp require_origins_option(opts) do
-    case Keyword.fetch(opts, :origins) do
-      {:ok, _} ->
-        opts
-
-      :error ->
-        raise ArgumentError,
-              "the :origins option is required. It should be \"*\" (which might be insecure), " <>
-                "a string, a regex, or a list of strings or regexes. Check the documentation " <>
-                "for more information."
+    if Keyword.fetch(opts, :origins) == :error do
+      IO.warn(
+        "the :origins option should be specified. In this Corsica version, it defaults to " <>
+          "\"*\" which means all origins are accepted, but this default is not secure. In future " <>
+          "Corsica versions, the :origins option will be required and an error will be raised " <>
+          "when it's not provided"
+      )
     end
+
+    opts
   end
 
   defp maybe_update_option(opts, option, update_fun) do
