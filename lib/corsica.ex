@@ -63,11 +63,11 @@ defmodule Corsica do
 
   ## Origins
 
-  Allowed origins can be specified by passing the `:origins` options either when
-  using a Corsica-based router or when plugging `Corsica` in a plug pipeline.
+  Allowed origins must be specified by passing the `:origins` options either when
+  using a Corsica-based router or when plugging `Corsica` in a plug pipeline. If
+  `:origins` is not provided, an error will be raised.
 
-  `:origins` can be a single value or a list of values. `"*"` can only appear as
-  a single value. The default value is `"*"`.  The origin of a request
+  `:origins` can be a single value or a list of values. The origin of a request
   (specified by the `"origin"` request header) will be considered a valid origin
   if it "matches" at least one of the origins specified in `:origins`. What
   "matches" means depends on the type of origin. Origins can be:
@@ -79,9 +79,14 @@ defmodule Corsica do
       origin as its only argument; if it returns `true` the origin is accepted,
       if it returns `false` the origin is not accepted
 
+  The value `"*"` can also be used to match every origin and reply with `*` as
+  the value of the `access-control-allow-origin` header. If `"*"` is used, it
+  must be used as the only value of `:origins` (that is, it can't be used inside
+  a list of accepted origins).
+
   For example:
 
-      # Matches everything
+      # Matches everything.
       plug Corsica, origins: "*"
 
       # Matches one of the given origins
@@ -266,7 +271,7 @@ defmodule Corsica do
     defstruct [
       :max_age,
       :expose_headers,
-      origins: "*",
+      :origins,
       allow_methods: ~w(PUT PATCH DELETE),
       allow_headers: [],
       allow_credentials: false,
@@ -291,7 +296,9 @@ defmodule Corsica do
   # Public so that it can be called from `Corsica.Router` (and for testing too).
   @doc false
   def sanitize_opts(opts) when is_list(opts) do
-    struct(Options, opts)
+    opts
+    |> require_origins_option()
+    |> to_options_struct()
     |> Map.update!(:allow_methods, fn
          :all -> :all
          methods -> Enum.map(methods, &String.upcase/1)
@@ -303,6 +310,21 @@ defmodule Corsica do
     |> Map.update!(:log, fn levels -> levels && Keyword.merge(@default_log_levels, levels) end)
     |> maybe_update_option(:max_age, &to_string/1)
     |> maybe_update_option(:expose_headers, &Enum.join(&1, ", "))
+  end
+
+  defp to_options_struct(opts), do: struct(Options, opts)
+
+  defp require_origins_option(opts) do
+    case Keyword.fetch(opts, :origins) do
+      {:ok, _} ->
+        opts
+
+      :error ->
+        raise ArgumentError,
+              "the :origins option is required. It should be \"*\" (which might be insecure), " <>
+                "a string, a regex, or a list of strings or regexes. Check the documentation " <>
+                "for more information."
+    end
   end
 
   defp maybe_update_option(opts, option, update_fun) do

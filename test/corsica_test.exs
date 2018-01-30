@@ -37,46 +37,57 @@ defmodule CorsicaTest do
 
   describe "sanitize_opts/1" do
     test ":max_age" do
-      assert sanitize_opts(max_age: 600).max_age == "600"
-      assert sanitize_opts([]).max_age == nil
+      assert sanitize_opts(origins: "*", max_age: 600).max_age == "600"
+      assert sanitize_opts(origins: "*").max_age == nil
     end
 
     test ":expose_headers" do
-      assert sanitize_opts(expose_headers: ~w(X-Foo X-Bar)).expose_headers == "X-Foo, X-Bar"
-      assert sanitize_opts([]).expose_headers == nil
+      assert sanitize_opts(origins: "*", expose_headers: ~w(X-Foo X-Bar)).expose_headers ==
+               "X-Foo, X-Bar"
+
+      assert sanitize_opts(origins: "*").expose_headers == nil
     end
 
-    test ":origins" do
+    test ":origins is required" do
+      assert_raise ArgumentError, ~r/the :origins option is required/, fn ->
+        sanitize_opts([])
+      end
+    end
+
+    test "value of :origins" do
       assert sanitize_opts(origins: ["foo.bar", ~r/.*/, {MyMod, :my_fun}]).origins ==
                ["foo.bar", ~r/.*/, {MyMod, :my_fun}]
 
-      assert sanitize_opts([]).origins == "*"
+      assert sanitize_opts(origins: "*").origins == "*"
+      assert sanitize_opts(origins: []).origins == []
     end
 
     test ":allow_methods" do
-      assert sanitize_opts(allow_methods: ~w(get pOSt PUT)).allow_methods == ~w(GET POST PUT)
-      assert sanitize_opts([]).allow_methods == ~w(PUT PATCH DELETE)
+      assert sanitize_opts(origins: "*", allow_methods: ~w(get pOSt PUT)).allow_methods ==
+               ~w(GET POST PUT)
+
+      assert sanitize_opts(origins: "*").allow_methods == ~w(PUT PATCH DELETE)
     end
 
     test ":allow_headers" do
-      assert sanitize_opts(allow_headers: ~w(X-Header y-HEADER)).allow_headers ==
+      assert sanitize_opts(origins: "*", allow_headers: ~w(X-Header y-HEADER)).allow_headers ==
                ~w(x-header y-header)
 
-      assert sanitize_opts([]).allow_headers == []
+      assert sanitize_opts(origins: "*").allow_headers == []
     end
 
     test ":allow_credentials" do
-      assert sanitize_opts(allow_credentials: true).allow_credentials == true
-      assert sanitize_opts([]).allow_credentials == false
+      assert sanitize_opts(origins: "*", allow_credentials: true).allow_credentials == true
+      assert sanitize_opts(origins: "*").allow_credentials == false
     end
 
     test ":log" do
-      log = sanitize_opts(log: [rejected: :error, accepted: false]).log
+      log = sanitize_opts(origins: "*", log: [rejected: :error, accepted: false]).log
       assert Keyword.fetch!(log, :rejected) == :error
       assert Keyword.fetch!(log, :invalid) == :debug
       assert Keyword.fetch!(log, :accepted) == false
 
-      assert sanitize_opts([]).log == false
+      assert sanitize_opts(origins: "*").log == false
     end
   end
 
@@ -115,19 +126,19 @@ defmodule CorsicaTest do
       conn = put_origin(conn(:get, "/"), "http://foo.com")
 
       conn = put_req_header(conn, "access-control-request-method", "PATCH")
-      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT PATCH)))
-      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(patch)))
+      assert allowed_preflight?(conn, sanitize_opts(origins: "*", allow_methods: ~w(PUT PATCH)))
+      assert allowed_preflight?(conn, sanitize_opts(origins: "*", allow_methods: ~w(patch)))
 
-      opts = sanitize_opts(allow_methods: ~w(PATCH), allow_headers: ~w(X-Foo))
+      opts = sanitize_opts(origins: "*", allow_methods: ~w(PATCH), allow_headers: ~w(X-Foo))
       assert allowed_preflight?(conn, opts)
 
       # "Simple methods" are always allowed.
       conn = put_req_header(conn, "access-control-request-method", "POST")
-      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w()))
+      assert allowed_preflight?(conn, sanitize_opts(origins: "*", allow_methods: ~w()))
 
       # When :allow_methods is :all all methods are allowed.
       conn = put_req_header(conn, "access-control-request-method", "WEIRDMETHOD")
-      assert allowed_preflight?(conn, sanitize_opts(allow_methods: :all))
+      assert allowed_preflight?(conn, sanitize_opts(origins: "*", allow_methods: :all))
     end
 
     test "with allowed requests (headers)" do
@@ -138,7 +149,7 @@ defmodule CorsicaTest do
         |> put_req_header("access-control-request-method", "PUT")
         |> put_req_header("access-control-request-headers", "X-Foo, X-Bar")
 
-      opts = sanitize_opts(allow_methods: ~w(PUT), allow_headers: ~w(X-Bar x-foo))
+      opts = sanitize_opts(origins: "*", allow_methods: ~w(PUT), allow_headers: ~w(X-Bar x-foo))
       assert allowed_preflight?(conn, opts)
 
       # "Simple headers" are always allowed.
@@ -147,7 +158,10 @@ defmodule CorsicaTest do
         |> put_req_header("access-control-request-method", "PUT")
         |> put_req_header("access-control-request-headers", "Accept, Content-Language")
 
-      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT), allow_headers: ~w()))
+      assert allowed_preflight?(
+               conn,
+               sanitize_opts(origins: "*", allow_methods: ~w(PUT), allow_headers: ~w())
+             )
 
       # When :allow_headers is :all all headers are allowed.
       conn =
@@ -155,7 +169,10 @@ defmodule CorsicaTest do
         |> put_req_header("access-control-request-method", "PUT")
         |> put_req_header("access-control-request-headers", "X-Header, X-Other-Header")
 
-      assert allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT), allow_headers: :all))
+      assert allowed_preflight?(
+               conn,
+               sanitize_opts(origins: "*", allow_methods: ~w(PUT), allow_headers: :all)
+             )
     end
 
     test "with non-allowed requests" do
@@ -164,18 +181,18 @@ defmodule CorsicaTest do
         |> put_origin("http://foo.com")
         |> put_req_header("access-control-request-method", "OPTIONS")
 
-      refute allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(PUT PATCH)))
-      refute allowed_preflight?(conn, sanitize_opts(allow_methods: ~w(put)))
+      refute allowed_preflight?(conn, sanitize_opts(origins: "*", allow_methods: ~w(PUT PATCH)))
+      refute allowed_preflight?(conn, sanitize_opts(origins: "*", allow_methods: ~w(put)))
 
-      opts = sanitize_opts(allow_methods: ~w(PUT), allow_headers: ~w(X-Foo))
+      opts = sanitize_opts(origins: "*", allow_methods: ~w(PUT), allow_headers: ~w(X-Foo))
       refute allowed_preflight?(conn, opts)
 
       conn = conn |> put_req_header("access-control-request-headers", "X-Foo, X-Bar")
 
-      opts = sanitize_opts(allow_methods: ~w(OPTIONS), allow_headers: ~w(X-Bar))
+      opts = sanitize_opts(origins: "*", allow_methods: ~w(OPTIONS), allow_headers: ~w(X-Bar))
       refute allowed_preflight?(conn, opts)
 
-      opts = sanitize_opts(allow_methods: ~w(OPTIONS), allow_headers: ~w(x-bar))
+      opts = sanitize_opts(origins: "*", allow_methods: ~w(OPTIONS), allow_headers: ~w(x-bar))
       refute allowed_preflight?(conn, opts)
     end
   end
@@ -198,7 +215,7 @@ defmodule CorsicaTest do
       conn =
         conn(:get, "/foo")
         |> put_origin("http://foo.bar")
-        |> put_cors_simple_resp_headers(allow_credentials: true)
+        |> put_cors_simple_resp_headers(allow_credentials: true, origins: "*")
 
       assert get_resp_header(conn, "access-control-allow-credentials") == ["true"]
       assert get_resp_header(conn, "access-control-allow-origin") == ["http://foo.bar"]
@@ -207,7 +224,7 @@ defmodule CorsicaTest do
       conn =
         conn(:get, "/foo")
         |> put_origin("http://foo.bar")
-        |> put_cors_simple_resp_headers(allow_credentials: false)
+        |> put_cors_simple_resp_headers(allow_credentials: false, origins: "*")
 
       assert get_resp_header(conn, "access-control-allow-credentials") == []
       assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
@@ -218,7 +235,7 @@ defmodule CorsicaTest do
       conn =
         conn(:get, "/foo")
         |> put_origin("http://foo.bar")
-        |> put_cors_simple_resp_headers(expose_headers: ~w(X-Foo X-Bar))
+        |> put_cors_simple_resp_headers(expose_headers: ~w(X-Foo X-Bar), origins: "*")
 
       assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
       assert get_resp_header(conn, "access-control-expose-headers") == ["X-Foo, X-Bar"]
@@ -254,7 +271,7 @@ defmodule CorsicaTest do
       conn = conn(:get, "/") |> put_origin("http://example.com")
 
       assert capture_log([level: :info], fn ->
-               put_cors_simple_resp_headers(conn, log: [accepted: :info])
+               put_cors_simple_resp_headers(conn, log: [accepted: :info], origins: "*")
              end) =~ ~s(Simple CORS request from Origin "http://example.com" is allowed)
 
       assert capture_log([level: :info], fn ->
@@ -263,7 +280,7 @@ defmodule CorsicaTest do
              end) =~ ~s(Simple CORS request from Origin "http://example.com" is not allowed)
 
       assert capture_log([level: :info], fn ->
-               put_cors_simple_resp_headers(conn(:get, "/"), log: [invalid: :info])
+               put_cors_simple_resp_headers(conn(:get, "/"), log: [invalid: :info], origins: "*")
              end) =~ ~s(Request is not a CORS request because there is no Origin header)
     end
   end
@@ -274,7 +291,7 @@ defmodule CorsicaTest do
         conn(:options, "/")
         |> put_origin("http://example.com")
         |> put_req_header("access-control-request-method", "PUT")
-        |> put_cors_preflight_resp_headers(allow_methods: ~w(GET PUT))
+        |> put_cors_preflight_resp_headers(allow_methods: ~w(GET PUT), origins: "*")
 
       assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
       assert get_resp_header(conn, "access-control-allow-methods") == ["GET, PUT"]
@@ -286,7 +303,7 @@ defmodule CorsicaTest do
         conn(:options, "/")
         |> put_origin("http://example.com")
         |> put_req_header("access-control-request-method", "PUT")
-        |> put_cors_preflight_resp_headers(allow_methods: :all)
+        |> put_cors_preflight_resp_headers(allow_methods: :all, origins: "*")
 
       assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
       assert get_resp_header(conn, "access-control-allow-methods") == ["PUT"]
@@ -295,7 +312,7 @@ defmodule CorsicaTest do
     end
 
     test "access-control-allow-headers" do
-      opts = [allow_methods: ~w(PUT), allow_headers: ~w(X-Foo X-Bar)]
+      opts = [allow_methods: ~w(PUT), allow_headers: ~w(X-Foo X-Bar), origins: "*"]
 
       conn =
         conn(:options, "/")
@@ -309,7 +326,7 @@ defmodule CorsicaTest do
       assert get_resp_header(conn, "access-control-max-age") == []
 
       # :allow_headers set to :all.
-      opts = [allow_methods: ~w(PUT), allow_headers: :all]
+      opts = [allow_methods: ~w(PUT), allow_headers: :all, origins: "*"]
 
       conn =
         conn(:options, "/")
@@ -329,14 +346,14 @@ defmodule CorsicaTest do
         conn(:options, "/")
         |> put_origin("http://example.com")
         |> put_req_header("access-control-request-method", "PUT")
-        |> put_cors_preflight_resp_headers(max_age: 400)
+        |> put_cors_preflight_resp_headers(max_age: 400, origins: "*")
 
       assert get_resp_header(conn, "access-control-max-age") == ["400"]
     end
 
     test "does nothing to non-CORS requests" do
       conn = conn(:options, "/")
-      assert conn == put_cors_preflight_resp_headers(conn, max_age: 1)
+      assert conn == put_cors_preflight_resp_headers(conn, origins: "*", max_age: 1)
     end
 
     test ":log option" do
@@ -344,14 +361,18 @@ defmodule CorsicaTest do
                conn(:options, "/")
                |> put_origin("http://example.com")
                |> put_req_header("access-control-request-method", "PUT")
-               |> put_cors_preflight_resp_headers(log: [accepted: :info])
+               |> put_cors_preflight_resp_headers(log: [accepted: :info], origins: "*")
              end) =~ ~s(Preflight CORS request from Origin "http://example.com" is allowed)
 
       assert capture_log([level: :info], fn ->
                conn(:options, "/")
                |> put_origin("http://example.com")
                |> put_req_header("access-control-request-method", "PUT")
-               |> put_cors_preflight_resp_headers(log: [rejected: :info], allow_methods: ["GET"])
+               |> put_cors_preflight_resp_headers(
+                    log: [rejected: :info],
+                    allow_methods: ["GET"],
+                    origins: "*"
+                  )
              end) =~
                ~s{Invalid preflight CORS request because the request method ("PUT") is not in :allow_methods}
 
@@ -362,7 +383,8 @@ defmodule CorsicaTest do
                |> put_req_header("access-control-request-headers", "x-foo, x-bar")
                |> put_cors_preflight_resp_headers(
                     log: [rejected: :info],
-                    allow_headers: ["x-nope"]
+                    allow_headers: ["x-nope"],
+                    origins: "*"
                   )
              end) =~
                ~s{Invalid preflight CORS request because these headers were not allowed in :allow_headers: x-foo, x-bar}
@@ -380,7 +402,7 @@ defmodule CorsicaTest do
 
       assert capture_log([level: :info], fn ->
                conn(:options, "/")
-               |> put_cors_preflight_resp_headers(log: [invalid: :info])
+               |> put_cors_preflight_resp_headers(origins: "*", log: [invalid: :info])
              end) =~ ~s(Request is not a preflight CORS request)
     end
   end
@@ -391,7 +413,7 @@ defmodule CorsicaTest do
         conn(:options, "/")
         |> put_origin("http://example.com")
         |> put_req_header("access-control-request-method", "PUT")
-        |> send_preflight_resp(allow_methods: ~w(PUT))
+        |> send_preflight_resp(allow_methods: ~w(PUT), origins: "*")
 
       assert conn.state == :sent
       assert conn.status == 200
@@ -405,7 +427,7 @@ defmodule CorsicaTest do
         conn(:options, "/")
         |> put_origin("http://example.com")
         |> put_req_header("access-control-request-method", "PUT")
-        |> send_preflight_resp(400, allow_methods: ~w(GET POST))
+        |> send_preflight_resp(400, origins: "*", allow_methods: ~w(GET POST))
 
       assert conn.state == :sent
       assert conn.status == 400
@@ -417,10 +439,10 @@ defmodule CorsicaTest do
 
   defmodule MyRouter do
     use Plug.Router
-    plug Corsica, allow_methods: ~w(PUT)
+    plug Corsica, allow_methods: ~w(PUT), origins: "*"
     plug :match
     plug :dispatch
-    match _, do: send_resp(conn, 200, "matched")
+    match(_, do: send_resp(conn, 200, "matched"))
   end
 
   test "using Corsica as a plug" do
