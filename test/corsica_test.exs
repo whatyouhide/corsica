@@ -369,10 +369,10 @@ defmodule CorsicaTest do
                |> put_origin("http://example.com")
                |> put_req_header("access-control-request-method", "PUT")
                |> put_cors_preflight_resp_headers(
-                    log: [rejected: :info],
-                    allow_methods: ["GET"],
-                    origins: "*"
-                  )
+                 log: [rejected: :info],
+                 allow_methods: ["GET"],
+                 origins: "*"
+               )
              end) =~
                ~s{Invalid preflight CORS request because the request method ("PUT") is not in :allow_methods}
 
@@ -382,10 +382,10 @@ defmodule CorsicaTest do
                |> put_req_header("access-control-request-method", "PUT")
                |> put_req_header("access-control-request-headers", "x-foo, x-bar")
                |> put_cors_preflight_resp_headers(
-                    log: [rejected: :info],
-                    allow_headers: ["x-nope"],
-                    origins: "*"
-                  )
+                 log: [rejected: :info],
+                 allow_headers: ["x-nope"],
+                 origins: "*"
+               )
              end) =~
                ~s{Invalid preflight CORS request because these headers were not allowed in :allow_headers: x-foo, x-bar}
 
@@ -394,9 +394,9 @@ defmodule CorsicaTest do
                |> put_origin("http://example.com")
                |> put_req_header("access-control-request-method", "PUT")
                |> put_cors_preflight_resp_headers(
-                    log: [rejected: :info],
-                    origins: ["http://foo.com"]
-                  )
+                 log: [rejected: :info],
+                 origins: ["http://foo.com"]
+               )
              end) =~
                ~s(Preflight CORS request from Origin "http://example.com" is not allowed because its origin is not allowed)
 

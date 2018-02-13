@@ -300,13 +300,13 @@ defmodule Corsica do
     |> require_origins_option()
     |> to_options_struct()
     |> Map.update!(:allow_methods, fn
-         :all -> :all
-         methods -> Enum.map(methods, &String.upcase/1)
-       end)
+      :all -> :all
+      methods -> Enum.map(methods, &String.upcase/1)
+    end)
     |> Map.update!(:allow_headers, fn
-         :all -> :all
-         headers -> Enum.map(headers, &String.downcase/1)
-       end)
+      :all -> :all
+      headers -> Enum.map(headers, &String.downcase/1)
+    end)
     |> Map.update!(:log, fn levels -> levels && Keyword.merge(@default_log_levels, levels) end)
     |> maybe_update_option(:max_age, &to_string/1)
     |> maybe_update_option(:expose_headers, &Enum.join(&1, ", "))
