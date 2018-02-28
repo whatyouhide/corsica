@@ -2,6 +2,12 @@ defmodule Corsica.RouterTest do
   use ExUnit.Case, async: true
   use Plug.Test
 
+  defmodule WildcardRouter do
+    use Corsica.Router, origins: "*", max_age: 600
+
+    resource "/*"
+  end
+
   defmodule MyRouter do
     use Corsica.Router, origins: "*", max_age: 600
 
@@ -36,6 +42,11 @@ defmodule Corsica.RouterTest do
     plug :dispatch
 
     get _, do: send_resp(conn, 200, "regex")
+  end
+
+  test "/foo on wildcard" do
+    conn = conn(:get, "/foo") |> put_origin("foo.com") |> WildcardRouter.call([])
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
   end
 
   test "/foo" do

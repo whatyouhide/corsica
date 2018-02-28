@@ -136,9 +136,13 @@ defmodule Corsica.Router do
         end
       end
 
-      # Match-all clause that just returns the connection unchanged.
-      match _ do
-        var!(conn)
+      has_match_all? = Enum.any?(routes, fn {r, _} -> r === "/*" end)
+
+      unless has_match_all? do
+        # Match-all clause that just returns the connection unchanged.
+        match _ do
+          var!(conn)
+        end
       end
     end
   end
