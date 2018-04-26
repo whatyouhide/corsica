@@ -28,12 +28,11 @@ defmodule Corsica.Mixfile do
   end
 
   def application() do
-    [applications: [:logger, :cowboy, :plug]]
+    [applications: [:logger, :plug]]
   end
 
   defp deps() do
     deps = [
-      {:cowboy, "~> 1.0"},
       {:plug, "~> 1.0"},
       {:ex_doc, "~> 0.15", only: :dev}
     ]
