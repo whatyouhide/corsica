@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.2
+
+### Improvements
+
+  * Drop the cowboy dependency completely (see #40).
+
 ## v1.1.0
 
 ### Improvements
