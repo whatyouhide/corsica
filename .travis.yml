@@ -17,4 +17,4 @@ jobs:
       elixir: '1.3'
 
     - stage: check formatted
-      script: mix test --check-formatted
+      script: mix format --check-formatted
