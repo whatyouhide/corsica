@@ -106,6 +106,15 @@ defmodule Corsica.Router do
 
     quote bind_quoted: [global_opts: Macro.escape(global_opts), routes: routes] do
       for {route, opts} <- routes do
+
+        {match_opts,opts} = Keyword.pop(opts,:match_opts)
+
+        match_opts = 
+        case is_nil(match_opts) do
+          true -> []
+          false -> match_opts  
+        end
+          
         opts =
           global_opts
           |> Keyword.merge(opts)
@@ -125,7 +134,7 @@ defmodule Corsica.Router do
           end
         end
 
-        match route do
+        match route, match_opts do
           conn = var!(conn)
 
           if Corsica.cors_req?(conn) do
