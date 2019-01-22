@@ -15,6 +15,7 @@ defmodule Corsica.RouterTest do
     resource "/bar", origins: ~r/\.com$/
     resource "/wild/*"
     resource "/preflight", allow_methods: ~w(PUT)
+    resource "/mysubdomain", host: "mysubdomain."
   end
 
   defmodule Pipeline do
@@ -75,6 +76,26 @@ defmodule Corsica.RouterTest do
     conn = conn(:get, "/wild/ca/rd") |> put_origin("foo.com") |> Pipeline.call([])
     assert conn.resp_body == "match"
     assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+  end
+
+  test "/mysubdomain" do
+    conn =
+      conn(:get, "/mysubdomain")
+      |> put_origin("foo.com")
+      |> Map.put(:host, "mysubdomain.example.com")
+      |> Pipeline.call([])
+
+    assert conn.resp_body == "match"
+    assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+
+    conn =
+      conn(:get, "/mysubdomain")
+      |> put_origin("foo.com")
+      |> Map.put(:host, "example.com")
+      |> Pipeline.call([])
+
+    assert conn.resp_body == "match"
+    assert get_resp_header(conn, "access-control-allow-origin") == []
   end
 
   test "preflight requests" do

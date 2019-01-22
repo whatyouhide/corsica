@@ -86,12 +86,18 @@ defmodule Corsica.Router do
   by itself.
 
   The options given to `resource/2` are merged with the default options like it
-  happens with the rest of the functions in the `Corsica` module.
+  happens with the rest of the functions in the `Corsica` module. The `resource/2`
+  macro also accepts the following options (similar to `Plug.Router.match/3`):
+
+    * `:host` - the host which the route should match. Defaults to `nil`, meaning
+    no host match, but can be a string like `"example.com"` or a string ending with `.`,
+    like `"subdomain."`, for a subdomain match.
 
   ## Examples
 
       resource "/foo", origins: "*"
       resource "/wildcards/are/ok/*", max_age: 600
+      resource "/only/on/subdomain", host: "mysubdomain."
 
   """
   defmacro resource(route, opts \\ []) do
@@ -106,7 +112,9 @@ defmodule Corsica.Router do
 
     quote bind_quoted: [global_opts: Macro.escape(global_opts), routes: routes] do
       for {route, opts} <- routes do
-        opts =
+        {match_opts, opts} = Keyword.split(opts, [:host])
+
+        corsica_opts =
           global_opts
           |> Keyword.merge(opts)
           |> Corsica.sanitize_opts()
@@ -115,21 +123,21 @@ defmodule Corsica.Router do
         # Plug.Router wants this.
         route = route <> if(String.ends_with?(route, "*"), do: "_", else: "")
 
-        options route do
+        options route, match_opts do
           conn = var!(conn)
 
           if Corsica.preflight_req?(conn) do
-            Corsica.send_preflight_resp(conn, unquote(opts))
+            Corsica.send_preflight_resp(conn, unquote(corsica_opts))
           else
             conn
           end
         end
 
-        match route do
+        match route, match_opts do
           conn = var!(conn)
 
           if Corsica.cors_req?(conn) do
-            Corsica.put_cors_simple_resp_headers(conn, unquote(opts))
+            Corsica.put_cors_simple_resp_headers(conn, unquote(corsica_opts))
           else
             conn
           end
