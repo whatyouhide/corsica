@@ -2,8 +2,8 @@ language: elixir
 
 sudo: false
 
-otp_release: '21.1'
-elixir: '1.7'
+otp_release: '22.0'
+elixir: '1.9'
 
 stages:
   - check formatted
