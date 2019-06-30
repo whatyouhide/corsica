@@ -38,7 +38,7 @@ defmodule Corsica.Mixfile do
     ]
 
     if stream_data?() do
-      [{:stream_data, "~> 0.4", only: :test}] ++ deps
+      [{:stream_data, "~> 0.4", only: [:dev, :test]}] ++ deps
     else
       deps
     end
