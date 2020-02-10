@@ -42,8 +42,6 @@ jobs:
             elixir: 1.5.3
           - erlang: 18.3
             elixir: 1.4.5
-          - erlang: 18.3
-            elixir: 1.3.3
     steps:
       - uses: actions/checkout@v1
 

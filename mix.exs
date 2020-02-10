@@ -9,7 +9,7 @@ defmodule Corsica.Mixfile do
     [
       app: :corsica,
       version: @version,
-      elixir: "~> 1.3",
+      elixir: "~> 1.4",
       deps: deps(),
 
       # Hex
@@ -52,6 +52,7 @@ defmodule Corsica.Mixfile do
     ]
   end
 
+  # TODO: remove when we depend on Elixir ~> 1.5
   defp stream_data?() do
     Version.compare(System.version(), "1.5.0") in [:eq, :gt]
   end
