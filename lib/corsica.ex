@@ -109,8 +109,9 @@ defmodule Corsica do
 
   ## The "vary" header
 
-  If `:origins` is any value that can match more than one origin (list, regex, or `"*"`),
-  then a `vary: origin` header is added to the response.
+  When Corsica is configured such that the `access-control-allow-origin` response
+  header will vary depending on the `origin` request header then a `vary: origin`
+  response header will be set.
 
   ## Options
 
