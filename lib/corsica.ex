@@ -559,7 +559,7 @@ defmodule Corsica do
     conn
     |> put_allow_credentials_header(opts)
     |> put_allow_origin_header(opts)
-    |> update_vary_header(opts.origins)
+    |> update_vary_header(opts)
   end
 
   defp put_allow_credentials_header(conn, %Options{allow_credentials: allow_credentials}) do
@@ -570,14 +570,13 @@ defmodule Corsica do
     end
   end
 
-  defp put_allow_origin_header(conn, %Options{} = options) do
-    %{origins: origins, allow_credentials: allow_credentials} = options
+  defp put_allow_origin_header(conn, %Options{} = opts) do
     [actual_origin | _] = get_req_header(conn, "origin")
 
     # '*' cannot be used as the value of the `Access-Control-Allow-Origins`
     # header if `Access-Control-Allow-Credentials` is true.
     value =
-      if origins == "*" and not allow_credentials do
+      if send_wildcard_origin?(opts) do
         "*"
       else
         actual_origin
@@ -586,13 +585,23 @@ defmodule Corsica do
     put_resp_header(conn, "access-control-allow-origin", value)
   end
 
-  # Only update the Vary header if the origin is not a binary (it could be a
-  # regex or a function) or if there's a list of more than one origins.
-  defp update_vary_header(conn, origin) when is_binary(origin) and origin != "*", do: conn
-  defp update_vary_header(conn, [origin]) when is_binary(origin) and origin != "*", do: conn
+  # Add `vary: origin` response header if the `access-control-allow-origin` response header may
+  # have different values depending on the value of the `origin` request header.
+  defp update_vary_header(conn, %Options{origins: [origin]} = opts) do
+    update_vary_header(conn, %{opts | origins: origin})
+  end
 
-  defp update_vary_header(conn, _origin),
-    do: %{conn | resp_headers: [{"vary", "origin"} | conn.resp_headers]}
+  defp update_vary_header(conn, %Options{origins: origins} = opts) do
+    cond do
+      is_binary(origins) and origins != "*" -> conn
+      send_wildcard_origin?(opts) -> conn
+      true -> %{conn | resp_headers: [{"vary", "origin"} | conn.resp_headers]}
+    end
+  end
+
+  defp send_wildcard_origin?(%Options{origins: origins, allow_credentials: allow_credentials}) do
+    origins == "*" and not allow_credentials
+  end
 
   defp put_allow_methods_header(conn, %Options{allow_methods: allow_methods}) do
     value =
