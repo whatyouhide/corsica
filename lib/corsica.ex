@@ -574,8 +574,6 @@ defmodule Corsica do
   defp put_allow_origin_header(conn, %Options{} = opts) do
     [actual_origin | _] = get_req_header(conn, "origin")
 
-    # '*' cannot be used as the value of the `Access-Control-Allow-Origins`
-    # header if `Access-Control-Allow-Credentials` is true.
     value =
       if send_wildcard_origin?(opts) do
         "*"
@@ -601,6 +599,8 @@ defmodule Corsica do
   end
 
   defp send_wildcard_origin?(%Options{origins: origins, allow_credentials: allow_credentials}) do
+    # '*' cannot be used as the value of the `Access-Control-Allow-Origins`
+    # header if `Access-Control-Allow-Credentials` is true.
     origins == "*" and not allow_credentials
   end
 
