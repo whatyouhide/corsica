@@ -585,8 +585,8 @@ defmodule Corsica do
     put_resp_header(conn, "access-control-allow-origin", value)
   end
 
-  # Add `vary: origin` response header if the `access-control-allow-origin` response header may
-  # have different values depending on the value of the `origin` request header.
+  # Add `vary: origin` response header if the `access-control-allow-origin` response header will
+  # vary depending on the `origin` request header.
   defp update_vary_header(conn, %Options{origins: [origin]} = opts) do
     update_vary_header(conn, %{opts | origins: origin})
   end
