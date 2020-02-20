@@ -109,8 +109,8 @@ defmodule Corsica do
 
   ## The "vary" header
 
-  If `:origins` is a list with more than one value and the request origin
-  matches, then a `Vary: Origin` header is added to the response.
+  If `:origins` is any value that can match more than one origin (list, regex, or `"*"`),
+  then a `vary: origin` header is added to the response.
 
   ## Options
 
@@ -588,8 +588,8 @@ defmodule Corsica do
 
   # Only update the Vary header if the origin is not a binary (it could be a
   # regex or a function) or if there's a list of more than one origins.
-  defp update_vary_header(conn, origin) when is_binary(origin), do: conn
-  defp update_vary_header(conn, [origin]) when is_binary(origin), do: conn
+  defp update_vary_header(conn, origin) when is_binary(origin) and origin != "*", do: conn
+  defp update_vary_header(conn, [origin]) when is_binary(origin) and origin != "*", do: conn
 
   defp update_vary_header(conn, _origin),
     do: %{conn | resp_headers: [{"vary", "origin"} | conn.resp_headers]}

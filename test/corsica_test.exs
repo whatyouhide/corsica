@@ -245,7 +245,7 @@ defmodule CorsicaTest do
       conn = conn(:get, "/foo") |> put_origin("http://foo.com")
 
       new_conn = put_cors_simple_resp_headers(conn, origins: "*")
-      assert get_resp_header(new_conn, "vary") == []
+      assert get_resp_header(new_conn, "vary") == ["origin"]
 
       new_conn = put_cors_simple_resp_headers(conn, origins: "http://foo.com")
       assert get_resp_header(new_conn, "vary") == []
