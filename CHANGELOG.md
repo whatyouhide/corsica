@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.3
+
+### Bug fixes
+
+  * Send the `vary: origin` header when the origin is not `*`. We were doing this in some cases before but we missed a handful of other cases. See https://github.com/whatyouhide/corsica/pull/45.
+
 ## v1.1.2
 
 ### Improvements
