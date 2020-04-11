@@ -202,7 +202,8 @@ defmodule Corsica do
   type completely. `false` can also be used as the value of the `:log` option
   directly to suppress all logs.
 
-  The default value for the `:log` option is `false`.
+  The default value for the `:log` option is `[]` (which means all is logged
+  according to the default log levels specified above).
 
   For example:
 
@@ -276,7 +277,7 @@ defmodule Corsica do
       allow_methods: ~w(PUT PATCH DELETE),
       allow_headers: [],
       allow_credentials: false,
-      log: false
+      log: []
     ]
   end
 

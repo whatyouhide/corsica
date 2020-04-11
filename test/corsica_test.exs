@@ -82,12 +82,18 @@ defmodule CorsicaTest do
     end
 
     test ":log" do
+      assert sanitize_opts(origins: "*", log: false).log == false
+
       log = sanitize_opts(origins: "*", log: [rejected: :error, accepted: false]).log
       assert Keyword.fetch!(log, :rejected) == :error
       assert Keyword.fetch!(log, :invalid) == :debug
       assert Keyword.fetch!(log, :accepted) == false
 
-      assert sanitize_opts(origins: "*").log == false
+      assert sanitize_opts(origins: "*").log == [
+               rejected: :warn,
+               invalid: :debug,
+               accepted: :debug
+             ]
     end
   end
 
