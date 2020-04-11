@@ -89,11 +89,10 @@ defmodule CorsicaTest do
       assert Keyword.fetch!(log, :invalid) == :debug
       assert Keyword.fetch!(log, :accepted) == false
 
-      assert sanitize_opts(origins: "*").log == [
-               rejected: :warn,
-               invalid: :debug,
-               accepted: :debug
-             ]
+      log = sanitize_opts(origins: "*").log
+      assert Keyword.fetch!(log, :rejected) == :error
+      assert Keyword.fetch!(log, :invalid) == :debug
+      assert Keyword.fetch!(log, :accepted) == false
     end
   end
 
