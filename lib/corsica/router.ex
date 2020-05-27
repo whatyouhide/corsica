@@ -38,6 +38,7 @@ defmodule Corsica.Router do
       defmodule MyApp.Endpoint do
         plug Plug.Head
         plug MyApp.CORS
+        plug Plug.Static
         plug MyApp.Router
       end
 

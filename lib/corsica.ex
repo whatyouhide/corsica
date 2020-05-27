@@ -42,15 +42,17 @@ defmodule Corsica do
   and the appropriate headers) to preflight requests.
 
   If you want to use `Corsica` as a plug, be sure to plug it in your plug
-  pipeline **before** any router: routers like `Plug.Router` (or
+  pipeline **before** any router-like plug: routers like `Plug.Router` (or
   `Phoenix.Router`) respond to HTTP verbs as well as request urls, so if
   `Corsica` is plugged after a router then preflight requests (which are
   `OPTIONS` requests) will often result in 404 errors since no route responds to
-  them.
+  them. Router-like plugs also include plugs like `Plug.Static`, which
+  respond to requests and halt the pipeline.
 
       defmodule MyApp.Endpoint do
         plug Head
         plug Corsica, max_age: 600, origins: "*", expose_headers: ~w(X-Foo)
+        plug Plug.Static
         plug MyApp.Router
       end
 
