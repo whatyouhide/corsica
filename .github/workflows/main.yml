@@ -25,7 +25,7 @@ jobs:
         run: mix compile --warnings-as-errors
 
   test:
-    name: Test (Elixir ${{matrix.elixir}} | Erlang/OTP ${{matrix.erlang}}
+    name: Test (Elixir ${{matrix.elixir}} | Erlang/OTP ${{matrix.erlang}})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
