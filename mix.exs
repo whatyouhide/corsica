@@ -9,7 +9,7 @@ defmodule Corsica.Mixfile do
     [
       app: :corsica,
       version: @version,
-      elixir: "~> 1.4",
+      elixir: "~> 1.8",
       deps: deps(),
 
       # Hex
