@@ -1,4 +1,4 @@
-if Code.ensure_compiled?(ExUnitProperties) do
+if Code.ensure_loaded?(ExUnitProperties) do
   defmodule Corsica.PropertiesTest do
     use ExUnit.Case, async: true
     use ExUnitProperties
