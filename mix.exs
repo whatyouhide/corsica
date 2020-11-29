@@ -12,6 +12,9 @@ defmodule Corsica.Mixfile do
       elixir: "~> 1.8",
       deps: deps(),
 
+      # Tests
+      test_coverage: [tool: ExCoveralls],
+
       # Hex
       package: package(),
       description: @description,
@@ -34,6 +37,7 @@ defmodule Corsica.Mixfile do
   defp deps() do
     deps = [
       {:plug, "~> 1.0"},
+      {:excoveralls, "~> 0.13.3", only: :test},
       {:ex_doc, "~> 0.15", only: :dev}
     ]
 
