@@ -1,6 +1,7 @@
 # Corsica
 
 ![](https://github.com/whatyouhide/corsica/workflows/CI/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/whatyouhide/corsica/badge.svg?branch=main)](https://coveralls.io/github/whatyouhide/corsica?branch=main)
 [![Hex.pm](https://img.shields.io/hexpm/v/corsica.svg)](https://hex.pm/packages/corsica)
 
 Corsica is a plug and a DSL for handling [CORS][cors-wiki] requests.
