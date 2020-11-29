@@ -6,36 +6,6 @@ defmodule CorsicaTest do
   import ExUnit.CaptureIO
   import ExUnit.CaptureLog
 
-  @tag :replaced_by_property
-  test "cors_req?/1" do
-    conn = conn(:get, "/")
-    refute cors_req?(conn)
-    assert cors_req?(put_origin(conn, "http://example.com"))
-
-    conn = conn(:put, "/foo")
-    refute cors_req?(conn)
-    assert cors_req?(put_origin(conn, "http://example.com"))
-  end
-
-  @tag :replaced_by_property
-  test "preflight_req?/1" do
-    refute conn(:get, "/") |> put_origin("http://example.com") |> preflight_req?()
-    refute conn(:head, "/") |> put_origin("http://example.com") |> preflight_req?()
-    refute conn(:options, "/") |> put_origin("http://example.com") |> preflight_req?()
-
-    assert conn(:options, "/")
-           |> put_origin("http://example.com")
-           |> put_req_header("access-control-request-method", "GET")
-           |> preflight_req?()
-
-    # Non-CORS requests aren't preflight requests.
-    refute conn(:get, "/") |> preflight_req?()
-
-    refute conn(:options, "/")
-           |> put_req_header("access-control-request-method", "GET")
-           |> preflight_req?()
-  end
-
   describe "sanitize_opts/1" do
     test ":max_age" do
       assert sanitize_opts(origins: "*", max_age: 600).max_age == "600"

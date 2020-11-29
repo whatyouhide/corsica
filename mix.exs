@@ -31,21 +31,16 @@ defmodule Corsica.Mixfile do
   end
 
   def application() do
-    [applications: [:logger, :plug]]
+    [extra_applications: [:logger]]
   end
 
   defp deps() do
-    deps = [
+    [
       {:plug, "~> 1.0"},
       {:excoveralls, "~> 0.13.3", only: :test},
-      {:ex_doc, "~> 0.15", only: :dev}
+      {:ex_doc, "~> 0.15", only: :dev},
+      {:stream_data, "~> 0.4", only: [:dev, :test]}
     ]
-
-    if stream_data?() do
-      [{:stream_data, "~> 0.4", only: [:dev, :test]}] ++ deps
-    else
-      deps
-    end
   end
 
   defp package() do
@@ -54,10 +49,5 @@ defmodule Corsica.Mixfile do
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/whatyouhide/corsica"}
     ]
-  end
-
-  # TODO: remove when we depend on Elixir ~> 1.5
-  defp stream_data?() do
-    Version.compare(System.version(), "1.5.0") in [:eq, :gt]
   end
 end
