@@ -25,9 +25,11 @@ most fun thing in the world, are they?)*
 Add the `:corsica` dependency to your project's `mix.exs`:
 
 ```elixir
-defp dependencies do
-  [{:plug, "~> 1.0"},
-   {:corsica, "~> 1.0"}]
+defp deps do
+  [
+    {:plug, "~> 1.0"},
+    {:corsica, "~> 1.0"}
+  ]
 end
 ```
 
