@@ -22,21 +22,14 @@ most fun thing in the world, are they?)*
 
 ## Installation
 
-Just add the `:corsica` dependency to your project's `mix.exs`:
+Add the `:corsica` dependency to your project's `mix.exs`:
 
 ```elixir
-defp dependencies do
-  [{:plug, "~> 1.0"},
-   {:corsica, "~> 1.0"}]
-end
-```
-
-Ensure `:corsica` is started before your application (only if using
-`:applications` and not using application inference):
-
-```elixir
-def application do
-  [applications: [:corsica]]
+defp deps do
+  [
+    {:plug, "~> 1.0"},
+    {:corsica, "~> 1.0"}
+  ]
 end
 ```
 
