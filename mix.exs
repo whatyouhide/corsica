@@ -37,7 +37,7 @@ defmodule Corsica.Mixfile do
   defp deps() do
     [
       {:plug, "~> 1.0"},
-      {:excoveralls, "~> 0.13.3", only: :test},
+      {:excoveralls, "~> 0.14", only: :test},
       {:ex_doc, "~> 0.15", only: :dev},
       {:stream_data, "~> 0.4", only: [:dev, :test]}
     ]
