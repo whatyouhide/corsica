@@ -37,19 +37,26 @@ jobs:
           otp-version: ${{matrix.otp}}
           elixir-version: ${{matrix.elixir}}
 
-      - name: Install dependencies
-        run: mix deps.get --only test
+      - name: Cache built dependencies
+        id: cache-deps
+        uses: actions/cache@v2
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-otp${{ matrix.otp }}-elixir${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
 
-      - name: Check formatted code
+      - name: Install and compile dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: mix do deps.get --only test, deps.compile
+
+      - name: Check formatting
         run: mix format --check-formatted
         if: ${{matrix.lint}}
 
       - name: Check no unused dependencies
         run: mix deps.get && mix deps.unlock --check-unused
-        if: ${{matrix.lint}}
-
-      - name: Compile dependencies
-        run: mix deps.compile
+        if: ${{matrix.lint == 'true' && steps.cache-deps.outputs.cache-hit != 'true'}}
 
       - name: Compile with --warnings-as-errors
         run: mix compile --warnings-as-errors
