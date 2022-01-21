@@ -9,7 +9,7 @@ defmodule Corsica.Mixfile do
     [
       app: :corsica,
       version: @version,
-      elixir: "~> 1.8",
+      elixir: "~> 1.10",
       deps: deps(),
 
       # Tests
