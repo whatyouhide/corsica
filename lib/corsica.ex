@@ -77,10 +77,10 @@ defmodule Corsica do
     * strings - the actual origin and the allowed origin have to be identical
     * regexes - the actual origin has to match the allowed regex (as per
       `Regex.match?/2`)
-    * `{module, function}` tuples - `module.function` is called with
-      2 arguments: the actual origin and the current connection;
-      if it returns `true` the origin is accepted, if it returns `false`
-      the origin is not accepted
+    * `{module, function, args}` tuples - `module.function` is called with
+      2 extra arguments prepended to the given `args`: the actual origin
+      and the current connection; if it returns `true` the origin is accepted,
+      if it returns `false` the origin is not accepted
 
   The value `"*"` can also be used to match every origin and reply with `*` as
   the value of the `access-control-allow-origin` header. If `"*"` is used, it
@@ -303,7 +303,6 @@ defmodule Corsica do
   def sanitize_opts(opts) when is_list(opts) do
     opts
     |> require_origins_option()
-    |> convert_tuple_origins()
     |> to_options_struct()
     |> Map.update!(:allow_methods, fn
       :all -> :all
@@ -316,7 +315,7 @@ defmodule Corsica do
     |> Map.update!(:log, fn levels -> levels && Keyword.merge(@default_log_levels, levels) end)
     |> maybe_update_option(:max_age, &to_string/1)
     |> maybe_update_option(:expose_headers, &Enum.join(&1, ", "))
-    |> convert_tuple_origins()
+    |> maybe_warn_tuple_origins()
   end
 
   defp to_options_struct(opts), do: struct(Options, opts)
@@ -342,22 +341,15 @@ defmodule Corsica do
     end
   end
 
-  defp convert_tuple_origins(opts) do
-    opts
-    |> Keyword.fetch!(:origins)
-    |> Enum.map(fn
-      {module, function} ->
-        if Code.ensure_compiled(module) == {:module, module} and
-             function_exported?(module, function, 2) do
-          {:v2, module, function}
-        else
-          IO.warn("TBD")
-          {:v1, module, function}
-        end
+  defp maybe_warn_tuple_origins(%{origins: origins} = opts) do
+    for {_module, _function} = origin <- List.wrap(origins) do
+      IO.warn(
+        "passing #{inspect(origin)} as an allowed origin is deprecated, " <>
+          "please see {module, function, args} for an alternative"
+      )
+    end
 
-      origin ->
-        origin
-    end)
+    opts
   end
 
   # Utilities
@@ -691,10 +683,14 @@ defmodule Corsica do
   defp matching_origin?(allowed, _actual, _conn) when is_binary(allowed), do: false
   defp matching_origin?(%Regex{} = allowed, actual, _conn), do: Regex.match?(allowed, actual)
 
-  defp matching_origin?({version, module, function}, actual, conn)
+  defp matching_origin?({module, function, args}, actual, conn)
+       when is_atom(module) and is_atom(function) and is_list(args) do
+    apply(module, function, [conn, actual | args])
+  end
+
+  defp matching_origin?({module, function}, actual, _conn)
        when is_atom(module) and is_atom(function) do
-    args = if version == :v1, do: [actual], else: [conn, actual]
-    apply(module, function, args)
+    apply(module, function, [actual])
   end
 
   # Made public for testing.
