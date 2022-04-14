@@ -77,8 +77,9 @@ defmodule Corsica do
     * strings - the actual origin and the allowed origin have to be identical
     * regexes - the actual origin has to match the allowed regex (as per
       `Regex.match?/2`)
-    * `{module, function}` tuples - `module.function` is called with the actual
-      origin as its only argument; if it returns `true` the origin is accepted,
+    * `{module, function, args}` tuples - `module.function` is called with
+      two extra arguments prepended to the given `args`: the actual origin
+      and the current connection; if it returns `true` the origin is accepted,
       if it returns `false` the origin is not accepted
 
   The value `"*"` can also be used to match every origin and reply with `*` as
@@ -314,6 +315,7 @@ defmodule Corsica do
     |> Map.update!(:log, fn levels -> levels && Keyword.merge(@default_log_levels, levels) end)
     |> maybe_update_option(:max_age, &to_string/1)
     |> maybe_update_option(:expose_headers, &Enum.join(&1, ", "))
+    |> maybe_warn_tuple_origins()
   end
 
   defp to_options_struct(opts), do: struct(Options, opts)
@@ -337,6 +339,17 @@ defmodule Corsica do
     else
       opts
     end
+  end
+
+  defp maybe_warn_tuple_origins(%{origins: origins} = opts) do
+    for {_module, _function} = origin <- List.wrap(origins) do
+      IO.warn(
+        "passing #{inspect(origin)} as an allowed origin is deprecated, " <>
+          "please see {module, function, args} for an alternative"
+      )
+    end
+
+    opts
   end
 
   # Utilities
@@ -663,15 +676,22 @@ defmodule Corsica do
 
   def allowed_origin?(conn, %Options{origins: origins}) do
     [origin | _] = get_req_header(conn, "origin")
-    Enum.any?(List.wrap(origins), &matching_origin?(&1, origin))
+    Enum.any?(List.wrap(origins), &matching_origin?(&1, origin, conn))
   end
 
-  defp matching_origin?(origin, origin), do: true
-  defp matching_origin?(allowed, _actual) when is_binary(allowed), do: false
-  defp matching_origin?(%Regex{} = allowed, actual), do: Regex.match?(allowed, actual)
+  defp matching_origin?(origin, origin, _conn), do: true
+  defp matching_origin?(allowed, _actual, _conn) when is_binary(allowed), do: false
+  defp matching_origin?(%Regex{} = allowed, actual, _conn), do: Regex.match?(allowed, actual)
 
-  defp matching_origin?({module, function}, actual) when is_atom(module) and is_atom(function),
-    do: apply(module, function, [actual])
+  defp matching_origin?({module, function, args}, actual, conn)
+       when is_atom(module) and is_atom(function) and is_list(args) do
+    apply(module, function, [conn, actual | args])
+  end
+
+  defp matching_origin?({module, function}, actual, _conn)
+       when is_atom(module) and is_atom(function) do
+    apply(module, function, [actual])
+  end
 
   # Made public for testing.
   @doc false

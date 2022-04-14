@@ -25,11 +25,14 @@ defmodule CorsicaTest do
     end
 
     test "value of :origins" do
-      assert sanitize_opts(origins: ["foo.bar", ~r/.*/, {MyMod, :my_fun}]).origins ==
-               ["foo.bar", ~r/.*/, {MyMod, :my_fun}]
+      assert sanitize_opts(origins: ["foo.bar", ~r/.*/, {MyMod, :my_fun, []}]).origins ==
+               ["foo.bar", ~r/.*/, {MyMod, :my_fun, []}]
 
       assert sanitize_opts(origins: "*").origins == "*"
       assert sanitize_opts(origins: []).origins == []
+
+      assert capture_io(:stderr, fn -> sanitize_opts(origins: {MyMod, :my_fun}) end) =~
+               "passing {MyMod, :my_fun} as an allowed origin is deprecated"
     end
 
     test ":allow_methods" do
@@ -69,6 +72,7 @@ defmodule CorsicaTest do
   describe "allowed_origin?/2" do
     defmodule MyOriginChecker do
       def check(_origin), do: Process.get(:corsica_accept_origin, false)
+      def check(%Plug.Conn{}, _origin, :test), do: Process.get(:corsica_accept_origin, false)
     end
 
     test "with allowed origins" do
@@ -81,7 +85,7 @@ defmodule CorsicaTest do
       assert allowed_origin?(conn, sanitize_opts(origins: [~r/(foo|bar)\.com$/]))
 
       Process.put(:corsica_accept_origin, true)
-      assert allowed_origin?(conn, sanitize_opts(origins: {MyOriginChecker, :check}))
+      assert allowed_origin?(conn, sanitize_opts(origins: {MyOriginChecker, :check, [:test]}))
     end
 
     test "with non-allowed origins" do
@@ -92,7 +96,10 @@ defmodule CorsicaTest do
       refute allowed_origin?(conn, sanitize_opts(origins: ~r/(foo|bar)\.org$/))
 
       Process.put(:corsica_accept_origin, false)
-      refute allowed_origin?(conn, sanitize_opts(origins: {MyOriginChecker, :check}))
+
+      capture_io(:stderr, fn ->
+        refute allowed_origin?(conn, sanitize_opts(origins: {MyOriginChecker, :check}))
+      end)
     end
   end
 
