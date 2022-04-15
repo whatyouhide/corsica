@@ -78,8 +78,8 @@ defmodule Corsica do
     * regexes - the actual origin has to match the allowed regex (as per
       `Regex.match?/2`)
     * `{module, function, args}` tuples - `module.function` is called with
-      two extra arguments prepended to the given `args`: the actual origin
-      and the current connection; if it returns `true` the origin is accepted,
+      two extra arguments prepended to the given `args`: the current connection
+      and the actual origin; if it returns `true` the origin is accepted,
       if it returns `false` the origin is not accepted
 
   The value `"*"` can also be used to match every origin and reply with `*` as
