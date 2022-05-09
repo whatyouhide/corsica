@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.0
+
+This version **drops support for Elixir 1.7 and lower**.
+
+### Improvements
+
+  * Add support for `{module, function, args}` as a value for the `:origins` option.
+
 ## v1.1.3
 
 ### Bug fixes
