@@ -69,7 +69,7 @@ jobs:
         if: ${{matrix.lint}}
 
       - name: Check no unused dependencies
-        run: mix do deps.get, deps.unlock --check-unused
+        run: mix do deps.get --only test, deps.unlock --check-unused
         if: ${{matrix.lint == 'true' && steps.cache-deps.outputs.cache-hit != 'true'}}
 
       - name: Compile with --warnings-as-errors
