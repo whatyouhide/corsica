@@ -38,6 +38,9 @@ defmodule Corsica.Mixfile do
   defp deps() do
     [
       {:plug, "~> 1.0"},
+
+      # Dev and test dependencies.
+      {:dialyxir, "~> 1.1.0", only: :dev},
       {:excoveralls, "~> 0.14", only: :test},
       {:ex_doc, "~> 0.15", only: :dev},
       {:stream_data, "~> 0.4", only: [:dev, :test]}
