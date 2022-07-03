@@ -46,6 +46,10 @@ jobs:
             _build
           key: ${{ runner.os }}-mix-otp${{ matrix.otp }}-elixir${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
 
+      - name: Install and compile dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: mix do deps.get, deps.compile
+
       # Don't cache PLTs based on mix.lock hash, as Dialyzer can incrementally update even old ones.
       # Cache key based on Elixir & Erlang version (also useful when running in matrix).
       - name: Cache Dialyzer's PLT
@@ -59,10 +63,6 @@ jobs:
       - name: Create PLTs
         if: steps.cache-plt.outputs.cache-hit != 'true'
         run: mix dialyzer --plt
-
-      - name: Install and compile dependencies
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: mix do deps.get, deps.compile
 
       - name: Check formatting
         run: mix format --check-formatted
