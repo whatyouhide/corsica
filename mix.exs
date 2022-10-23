@@ -51,7 +51,10 @@ defmodule Corsica.Mixfile do
     [
       maintainers: ["Andrea Leopardi"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/whatyouhide/corsica"}
+      links: %{
+        "GitHub" => "https://github.com/whatyouhide/corsica",
+        "Sponsor" => "https://github.com/sponsors/whatyouhide"
+      }
     ]
   end
 end
