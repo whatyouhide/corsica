@@ -32,6 +32,7 @@ defmodule Corsica do
     * `Access-Control-Allow-Methods`
     * `Access-Control-Allow-Headers`
     * `Access-Control-Allow-Credentials`
+    * `Access-Control-Allow-Private-Network`
     * `Access-Control-Expose-Headers`
     * `Access-Control-Max-Age`
 
@@ -149,6 +150,11 @@ defmodule Corsica do
       `access-control-allow-origin` header will always be the value of the
       `origin` request header (as per the W3C CORS specification) and not `*`.
       Defaults to `false`.
+
+    * `:allow_private_network` - a boolean. If `true`, sets the value of the
+      `access-control-allow-private-network` header used with preflight requests, which
+      indicates that a resource can be safely shared with external networks. If `false`
+      or does not specify, the `access-control-allow-private-network` is not sent at all.
 
     * `:expose_headers` - a list of headers (as binaries). Sets the value of
       the `access-control-expose-headers` response header. This option *does
@@ -280,6 +286,7 @@ defmodule Corsica do
       allow_methods: ~w(PUT PATCH DELETE),
       allow_headers: [],
       allow_credentials: false,
+      allow_private_network: false,
       log: []
     ]
   end
@@ -516,6 +523,8 @@ defmodule Corsica do
 
     * `Access-Control-Allow-Credentials` (if the `:allow_credentials` option is
       `true`)
+    * `Access-Control-Allow-Private-Network` (if the `:allow_private_network` option is
+      `true`)
     * `Access-Control-Max-Age` (if the `:max_age` option is present)
 
   ## Options
@@ -529,6 +538,7 @@ defmodule Corsica do
       put_cors_preflight_resp_headers conn, [
         max_age: 86400,
         allow_headers: ~w(X-Header),
+        allow_private_network: true,
         origins: ~r/\w+\.foo\.com$/
       ]
 
@@ -568,6 +578,7 @@ defmodule Corsica do
         |> put_common_headers(opts)
         |> put_allow_methods_header(opts)
         |> put_allow_headers_header(opts)
+        |> put_allow_private_network_header(opts)
         |> put_max_age_header(opts)
     end
   end
@@ -643,6 +654,16 @@ defmodule Corsica do
       end
 
     put_resp_header(conn, "access-control-allow-headers", Enum.join(allowed_headers, ", "))
+  end
+
+  defp put_allow_private_network_header(conn, %Options{
+         allow_private_network: allow_private_network
+       }) do
+    if allow_private_network do
+      put_resp_header(conn, "access-control-allow-private-network", "true")
+    else
+      conn
+    end
   end
 
   defp put_max_age_header(conn, %Options{max_age: max_age}) do
