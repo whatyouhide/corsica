@@ -153,8 +153,8 @@ defmodule Corsica do
 
     * `:allow_private_network` - a boolean. If `true`, sets the value of the
       `access-control-allow-private-network` header used with preflight requests, which
-      indicates that a resource can be safely shared with external networks. If `false`
-      or does not specify, the `access-control-allow-private-network` is not sent at all.
+      indicates that a resource can be safely shared with external networks. If `false`,
+      the `access-control-allow-private-network` is not sent at all. Defaults to `false`.
 
     * `:expose_headers` - a list of headers (as binaries). Sets the value of
       the `access-control-expose-headers` response header. This option *does
@@ -267,11 +267,12 @@ defmodule Corsica do
 
   @behaviour Plug
 
-  @default_log_levels [
-    rejected: :warn,
-    invalid: :debug,
-    accepted: :debug
-  ]
+  # TODO: remove once we depend on Elixir 1.11+.
+  if Version.match?(System.version(), ">= 1.11.0") do
+    @default_log_levels [rejected: :warning, invalid: :debug, accepted: :debug]
+  else
+    @default_log_levels [rejected: :warn, invalid: :debug, accepted: :debug]
+  end
 
   @simple_methods ~w(GET HEAD POST)
   @simple_headers ~w(accept accept-language content-language)
@@ -656,10 +657,8 @@ defmodule Corsica do
     put_resp_header(conn, "access-control-allow-headers", Enum.join(allowed_headers, ", "))
   end
 
-  defp put_allow_private_network_header(conn, %Options{
-         allow_private_network: allow_private_network
-       }) do
-    if allow_private_network do
+  defp put_allow_private_network_header(conn, %Options{allow_private_network: allow?}) do
+    if allow? do
       put_resp_header(conn, "access-control-allow-private-network", "true")
     else
       conn

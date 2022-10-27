@@ -63,9 +63,15 @@ defmodule CorsicaTest do
       assert Keyword.fetch!(log, :accepted) == false
 
       log = sanitize_opts(origins: "*").log
-      assert Keyword.fetch!(log, :rejected) == :warn
       assert Keyword.fetch!(log, :invalid) == :debug
       assert Keyword.fetch!(log, :accepted) == :debug
+
+      # TODO: remove once we depend on Elixir 1.11+.
+      if Version.match?(System.version(), ">= 1.11.0") do
+        assert Keyword.fetch!(log, :rejected) == :warning
+      else
+        assert Keyword.fetch!(log, :rejected) == :warn
+      end
     end
   end
 
