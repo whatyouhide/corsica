@@ -326,6 +326,24 @@ defmodule CorsicaTest do
       assert get_resp_header(conn, "access-control-max-age") == []
     end
 
+    test "access-control-allow-private-network" do
+      conn =
+        conn(:options, "/")
+        |> put_origin("http://example.com")
+        |> put_req_header("access-control-request-method", "PUT")
+        |> put_cors_preflight_resp_headers(origins: "*")
+
+      assert get_resp_header(conn, "access-control-allow-private-network") == []
+
+      conn =
+        conn(:options, "/")
+        |> put_origin("http://example.com")
+        |> put_req_header("access-control-request-method", "PUT")
+        |> put_cors_preflight_resp_headers(allow_private_network: true, origins: "*")
+
+      assert get_resp_header(conn, "access-control-allow-private-network") == ["true"]
+    end
+
     test "access-control-max-age" do
       conn =
         conn(:options, "/")
