@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.0
+
+## Improvements
+
+  * Add support for the `:allow_private_network` option to control the [`Access-Control-Allow-Private-Network` header](https://wicg.github.io/private-network-access/#http-headerdef-access-control-allow-private-network).
+  * Fix runtime warnings for the `:warn` logger level.
+
 ## v1.2.0
 
 This version **drops support for Elixir 1.7 and lower**.
