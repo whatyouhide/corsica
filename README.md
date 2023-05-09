@@ -1,13 +1,16 @@
 # Corsica
 
 [![hex.pm badge](https://img.shields.io/badge/Package%20on%20hex.pm-informational)](https://hex.pm/packages/corsica)
+[![Documentation badge](https://img.shields.io/badge/Documentation-ff69b4)][docs]
 [![CI](https://github.com/whatyouhide/corsica/workflows/CI/badge.svg)](https://github.com/whatyouhide/corsica/actions/workflows/main.yml)
 [![Coverage Status](https://coveralls.io/repos/github/whatyouhide/corsica/badge.svg?branch=main)](https://coveralls.io/github/whatyouhide/corsica?branch=main)
 
 Corsica is a plug and a DSL for handling [CORS][cors-wiki] requests.
 [Documentation can be found online][docs].
 
-![Nice Corsica pic][image]
+![Landscape image of a sunset in Corsica, with the sea in the foreground and mountains in the background](https://user-images.githubusercontent.com/3890250/237011378-833e6fff-fc6b-41b4-94ca-ae75c0109aff.jpg)
+> Photo by <a href="https://unsplash.com/@the_bracketeer?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Hendrik Cornelissen</a> on <a href="https://unsplash.com/photos/b_oRl_WOMVM?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+
 *(I had to include a nice pic because, let's be honest, CORS requests aren't the
 most fun thing in the world, are they?)*
 
@@ -111,7 +114,6 @@ Documentation will be generated in the `doc/` directory.
 
 MIT &copy; 2015 Andrea Leopardi, see the [license file](LICENSE.txt).
 
-[image]: http://i.imgur.com/n2DZpEU.jpg
 [docs]: https://hexdocs.pm/corsica
 [cors-wiki]: http://en.wikipedia.org/wiki/Cross-origin_resource_sharing
 [cors-spec]: http://www.w3.org/TR/cors
