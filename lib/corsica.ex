@@ -294,10 +294,12 @@ defmodule Corsica do
 
   # Plug callbacks.
 
+  @impl Plug
   def init(opts) do
     sanitize_opts(opts)
   end
 
+  @impl Plug
   def call(%Conn{} = conn, %Options{} = opts) do
     cond do
       not cors_req?(conn) -> conn
