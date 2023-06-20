@@ -15,6 +15,12 @@ defmodule Corsica.Mixfile do
       # Tests
       test_coverage: [tool: ExCoveralls],
 
+      # Dialyzer
+      dialyzer: [
+        plt_local_path: "priv/plts",
+        plt_core_path: "priv/plts"
+      ],
+
       # Hex
       package: package(),
       description: @description,
