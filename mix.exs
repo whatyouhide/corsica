@@ -15,6 +15,12 @@ defmodule Corsica.Mixfile do
       # Tests
       test_coverage: [tool: ExCoveralls],
 
+      # Dialyzer
+      dialyzer: [
+        plt_local_path: "priv/plts",
+        plt_core_path: "priv/plts"
+      ],
+
       # Hex
       package: package(),
       description: @description,
@@ -43,6 +49,9 @@ defmodule Corsica.Mixfile do
       {:dialyxir, "~> 1.1.0", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.14", only: :test},
       {:ex_doc, "~> 0.15", only: :dev},
+      # TODO: remove this explicitly once ssl_verify_fun fixes its OTP 26 support,
+      # or excoveralls stops depending on hackney.
+      {:ssl_verify_fun, "~> 1.1", only: :test, override: true, manager: :rebar3},
       {:stream_data, "~> 0.4", only: [:dev, :test]}
     ]
   end
