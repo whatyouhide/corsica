@@ -1,8 +1,34 @@
 # Changelog
 
+## v2.0.0
+
+### Breaking changes
+
+  * The `:origins` option is now **required**. Not having this option used to warn before this version.
+  * The `:log` option was removed in favor of `Corsica.Telemetry`.
+
+### Improvements
+
+  * Start emitting Telemetry events (see `Corsica.Telemetry`).
+  * Bump Elixir requirement to 1.11+.
+  * Response headers that contain lists (such as `access-control-expose-headers`) are now joined *without spaces*, so what could be `GET, POST, DELETE` before is now `GET,POST,DELETE`. Every byte's important.
+
+**Upgrading** from 1.x to 2.0.0 is a matter of these things:
+
+  * If you're not specifying the `:origins` options when using Corsica, add `origins: "*"` to all the places you're using Corsica (as a plug, through `Corsica.Router`, or through the functions in the `Corsica` module).
+
+  * If you were using the `:log` option, remove it and call this in your application's `start/2` callback:
+
+    ```elixir
+    log_levels = # what you were using before as the :log option
+    Corsica.Telemetry.attach_default_handler(log_levels: log_levels)
+
+    Supervisor.start_link(...)
+    ```
+
 ## v1.3.0
 
-## Improvements
+### Improvements
 
   * Add support for the `:allow_private_network` option to control the [`Access-Control-Allow-Private-Network` header](https://wicg.github.io/private-network-access/#http-headerdef-access-control-allow-private-network).
   * Fix runtime warnings for the `:warn` logger level.
