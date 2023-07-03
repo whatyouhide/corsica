@@ -324,7 +324,7 @@ defmodule Corsica do
     end)
     |> Map.update!(:log, fn levels -> levels && Keyword.merge(@default_log_levels, levels) end)
     |> maybe_update_option(:max_age, &to_string/1)
-    |> maybe_update_option(:expose_headers, &Enum.join(&1, ", "))
+    |> maybe_update_option(:expose_headers, &Enum.join(&1, ","))
     |> maybe_warn_tuple_origins()
   end
 
@@ -639,7 +639,7 @@ defmodule Corsica do
       if allow_methods == :all do
         hd(get_req_header(conn, "access-control-request-method"))
       else
-        Enum.join(allow_methods, ", ")
+        Enum.join(allow_methods, ",")
       end
 
     put_resp_header(conn, "access-control-allow-methods", value)
@@ -656,7 +656,7 @@ defmodule Corsica do
         allow_headers
       end
 
-    put_resp_header(conn, "access-control-allow-headers", Enum.join(allowed_headers, ", "))
+    put_resp_header(conn, "access-control-allow-headers", Enum.join(allowed_headers, ","))
   end
 
   defp put_allow_private_network_header(conn, %Options{allow_private_network: allow?}) do

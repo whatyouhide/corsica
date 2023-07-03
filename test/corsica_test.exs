@@ -14,7 +14,7 @@ defmodule CorsicaTest do
 
     test ":expose_headers" do
       assert sanitize_opts(origins: "*", expose_headers: ~w(X-Foo X-Bar)).expose_headers ==
-               "X-Foo, X-Bar"
+               "X-Foo,X-Bar"
 
       assert sanitize_opts(origins: "*").expose_headers == nil
     end
@@ -226,7 +226,7 @@ defmodule CorsicaTest do
         |> put_cors_simple_resp_headers(expose_headers: ~w(X-Foo X-Bar), origins: "*")
 
       assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
-      assert get_resp_header(conn, "access-control-expose-headers") == ["X-Foo, X-Bar"]
+      assert get_resp_header(conn, "access-control-expose-headers") == ["X-Foo,X-Bar"]
     end
 
     test "\"origin\" is added to the \"vary\" header" do
@@ -285,7 +285,7 @@ defmodule CorsicaTest do
         |> put_cors_preflight_resp_headers(allow_methods: ~w(GET PUT), origins: "*")
 
       assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
-      assert get_resp_header(conn, "access-control-allow-methods") == ["GET, PUT"]
+      assert get_resp_header(conn, "access-control-allow-methods") == ["GET,PUT"]
       assert get_resp_header(conn, "access-control-allow-headers") == [""]
       assert get_resp_header(conn, "access-control-max-age") == []
 
@@ -313,7 +313,7 @@ defmodule CorsicaTest do
 
       assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
       assert get_resp_header(conn, "access-control-allow-methods") == ["PUT"]
-      assert get_resp_header(conn, "access-control-allow-headers") == ["x-foo, x-bar"]
+      assert get_resp_header(conn, "access-control-allow-headers") == ["x-foo,x-bar"]
       assert get_resp_header(conn, "access-control-max-age") == []
 
       # :allow_headers set to :all.
@@ -328,7 +328,7 @@ defmodule CorsicaTest do
 
       assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
       assert get_resp_header(conn, "access-control-allow-methods") == ["PUT"]
-      assert get_resp_header(conn, "access-control-allow-headers") == ["x-header, x-other-header"]
+      assert get_resp_header(conn, "access-control-allow-headers") == ["x-header,x-other-header"]
       assert get_resp_header(conn, "access-control-max-age") == []
     end
 
