@@ -166,7 +166,10 @@ defmodule Corsica do
       *does not* have a default value; if it's not provided, the
       `access-control-max-age` header is not sent at all.
 
-    * `:log` - see the "Logging" section below. Defaults to `false`.
+    * `:telemetry_metadata` - *extra* telemetry metadata to be included in all emitted
+      events. This can be useful for identifying which `plug Corsica` call is emitting
+      the events. See `Corsica.Telemetry` for more information on Telemetry in Corsica.
+      Available since v2.0.0.
 
   ## Responding to preflight requests
 
@@ -186,40 +189,16 @@ defmodule Corsica do
       some headers that are not allowed (via the `Access-Control-Request-Method`
       and `Access-Control-Request-Headers` headers)
 
+  ## Telemetry
+
+  Corsica emits some [telemetry](https://github.com/beam-telemetry/telemetry) events.
+  See `Corsica.Telemetry` for documentation.
+
   ## Logging
 
-  Corsica supports basic logging functionalities; it can log whether a CORS
-  request is a valid one, what CORS headers are added to a response and similar
-  information. Corsica distinguishes between three "types" of logs:
-
-    * "rejected" logs, for when the request is "rejected" in the CORS perspective,
-      e.g., it's not allowed
-    * "invalid" logs, for when the request is not a simple CORS request or not a
-      CORS preflight request
-    * "accepted" logs, for when the request is a valid and accepted CORS request
-
-  It's possible to configure these logs with the `:log` option, which is a
-  keyword list with the `:rejected`, `:invalid`, and `:accepted` options. These
-  options specify the logging level of each type of log. The defaults values for
-  each level are:
-
-    * `rejected: :warn`
-    * `invalid: :debug`
-    * `accepted: :debug`
-
-  `false` can be used as the value of a level for a log type to suppress that
-  type completely. `false` can also be used as the value of the `:log` option
-  directly to suppress all logs.
-
-  The default value for the `:log` option is `[]` (which means all is logged
-  according to the default log levels specified above).
-
-  For example:
-
-      plug Corsica, log: [rejected: :error]
-      plug Corsica, log: false
-      plug Corsica, log: [rejected: :info, accepted: false]
-
+  Corsica used to support `Logger` logging through the `:log` option. This option
+  has been removed in v2.0.0 in favor of Telemetry events. If you want to keep the
+  logging behavior, see `Corsica.Telemetry.attach_default_handler/1`.
   """
 
   # Here are some nice (and apparently overlooked!) quotes from the W3C CORS
@@ -263,16 +242,7 @@ defmodule Corsica do
 
   alias Plug.Conn
 
-  require Logger
-
   @behaviour Plug
-
-  # TODO: remove once we depend on Elixir 1.11+.
-  if Version.match?(System.version(), ">= 1.11.0") do
-    @default_log_levels [rejected: :warning, invalid: :debug, accepted: :debug]
-  else
-    @default_log_levels [rejected: :warn, invalid: :debug, accepted: :debug]
-  end
 
   @simple_methods ~w(GET HEAD POST)
   @simple_headers ~w(accept accept-language content-language)
@@ -288,7 +258,7 @@ defmodule Corsica do
       allow_headers: [],
       allow_credentials: false,
       allow_private_network: false,
-      log: []
+      telemetry_metadata: %{}
     ]
   end
 
@@ -322,7 +292,6 @@ defmodule Corsica do
       :all -> :all
       headers -> Enum.map(headers, &String.downcase/1)
     end)
-    |> Map.update!(:log, fn levels -> levels && Keyword.merge(@default_log_levels, levels) end)
     |> maybe_update_option(:max_age, &to_string/1)
     |> maybe_update_option(:expose_headers, &Enum.join(&1, ","))
     |> maybe_warn_tuple_origins()
@@ -485,15 +454,15 @@ defmodule Corsica do
   def put_cors_simple_resp_headers(%Conn{} = conn, %Options{} = opts) do
     cond do
       not cors_req?(conn) ->
-        log(:invalid, opts, "Request is not a CORS request because there is no Origin header")
+        execute_telemetry(conn, opts, [:invalid_request], %{request_type: :simple})
         conn
 
       not allowed_origin?(conn, opts) ->
-        log(:rejected, opts, "Simple CORS request from Origin \"#{origin(conn)}\" is not allowed")
+        execute_telemetry(conn, opts, [:rejected_request], %{request_type: :simple})
         conn
 
       true ->
-        log(:accepted, opts, "Simple CORS request from Origin \"#{origin(conn)}\" is allowed")
+        execute_telemetry(conn, opts, [:accepted_request], %{request_type: :simple})
 
         conn
         |> put_common_headers(opts)
@@ -550,18 +519,14 @@ defmodule Corsica do
   def put_cors_preflight_resp_headers(%Conn{} = conn, %Options{} = opts) do
     cond do
       not preflight_req?(conn) ->
-        log(:invalid, opts, [
-          "Request is not a preflight CORS request because either it has no Origin header, ",
-          "its method is not OPTIONS, or it has no Access-Control-Request-Method header"
-        ])
-
+        execute_telemetry(conn, opts, [:invalid_request], %{request_type: :preflight})
         conn
 
       not allowed_origin?(conn, opts) ->
-        log(:rejected, opts, [
-          "Preflight CORS request from Origin \"#{origin(conn)}\" is not allowed ",
-          "because its origin is not allowed"
-        ])
+        execute_telemetry(conn, opts, [:rejected_request], %{
+          request_type: :preflight,
+          reason: :origin_not_allowed
+        })
 
         conn
 
@@ -570,7 +535,7 @@ defmodule Corsica do
         conn
 
       true ->
-        log(:accepted, opts, "Preflight CORS request from Origin \"#{origin(conn)}\" is allowed")
+        execute_telemetry(conn, opts, [:accepted_request], %{request_type: :preflight})
 
         conn
         |> put_common_headers(opts)
@@ -729,10 +694,10 @@ defmodule Corsica do
     if req_method in @simple_methods or req_method in allow_methods do
       true
     else
-      log(:rejected, opts, [
-        "Invalid preflight CORS request because the request ",
-        "method (#{inspect(req_method)}) is not in :allow_methods"
-      ])
+      execute_telemetry(conn, opts, [:rejected_request], %{
+        request_type: :preflight,
+        reason: {:req_method_not_allowed, req_method}
+      })
 
       false
     end
@@ -753,25 +718,21 @@ defmodule Corsica do
     if non_allowed_headers == [] do
       true
     else
-      log(:rejected, opts, [
-        "Invalid preflight CORS request because these headers were ",
-        "not allowed in :allow_headers: #{Enum.join(non_allowed_headers, ", ")}"
-      ])
+      execute_telemetry(conn, opts, [:rejected_request], %{
+        request_type: :preflight,
+        reason: {:req_headers_not_allowed, non_allowed_headers}
+      })
 
       false
     end
   end
 
-  defp log(_type, %Options{log: false}, _what) do
-    :ok
-  end
+  defp execute_telemetry(conn, %Options{} = opts, event_name, extra_meta) do
+    meta =
+      %{conn: conn}
+      |> Map.merge(extra_meta)
+      |> Map.merge(opts.telemetry_metadata)
 
-  defp log(type, %Options{log: log_opts}, what)
-       when is_list(log_opts) and type in [:invalid, :rejected, :accepted] do
-    if level = Keyword.fetch!(log_opts, type) do
-      Logger.log(level, what)
-    else
-      :ok
-    end
+    :telemetry.execute([:corsica] ++ event_name, _measurements = %{}, meta)
   end
 end

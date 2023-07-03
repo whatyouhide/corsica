@@ -4,7 +4,6 @@ defmodule CorsicaTest do
 
   import Corsica
   import ExUnit.CaptureIO
-  import ExUnit.CaptureLog
 
   describe "sanitize_opts/1" do
     test ":max_age" do
@@ -51,26 +50,6 @@ defmodule CorsicaTest do
     test ":allow_credentials" do
       assert sanitize_opts(origins: "*", allow_credentials: true).allow_credentials == true
       assert sanitize_opts(origins: "*").allow_credentials == false
-    end
-
-    test ":log" do
-      assert sanitize_opts(origins: "*", log: false).log == false
-
-      log = sanitize_opts(origins: "*", log: [rejected: :error, accepted: false]).log
-      assert Keyword.fetch!(log, :rejected) == :error
-      assert Keyword.fetch!(log, :invalid) == :debug
-      assert Keyword.fetch!(log, :accepted) == false
-
-      log = sanitize_opts(origins: "*").log
-      assert Keyword.fetch!(log, :invalid) == :debug
-      assert Keyword.fetch!(log, :accepted) == :debug
-
-      # TODO: remove once we depend on Elixir 1.11+.
-      if Version.match?(System.version(), ">= 1.11.0") do
-        assert Keyword.fetch!(log, :rejected) == :warning
-      else
-        assert Keyword.fetch!(log, :rejected) == :warn
-      end
     end
   end
 
@@ -257,21 +236,33 @@ defmodule CorsicaTest do
       assert get_resp_header(new_conn, "vary") == ["origin", "content-length"]
     end
 
-    test ":log option" do
+    test "telemetry events" do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:corsica, :accepted_request],
+          [:corsica, :rejected_request],
+          [:corsica, :invalid_request]
+        ])
+
       conn = conn(:get, "/") |> put_origin("http://example.com")
 
-      assert capture_log([level: :info], fn ->
-               put_cors_simple_resp_headers(conn, log: [accepted: :info], origins: "*")
-             end) =~ ~s(Simple CORS request from Origin "http://example.com" is allowed)
+      put_cors_simple_resp_headers(conn, origins: "*")
+      assert_receive {[:corsica, :accepted_request], ^ref, measurements, meta}
+      assert measurements == %{}
+      assert meta.request_type == :simple
+      assert %Plug.Conn{} = meta.conn
 
-      assert capture_log([level: :info], fn ->
-               opts = [log: [rejected: :info], origins: ["http://foo.com"]]
-               put_cors_simple_resp_headers(conn, opts)
-             end) =~ ~s(Simple CORS request from Origin "http://example.com" is not allowed)
+      put_cors_simple_resp_headers(conn, origins: ["http://foo.com"])
+      assert_receive {[:corsica, :rejected_request], ^ref, measurements, meta}
+      assert measurements == %{}
+      assert meta.request_type == :simple
+      assert %Plug.Conn{} = meta.conn
 
-      assert capture_log([level: :info], fn ->
-               put_cors_simple_resp_headers(conn(:get, "/"), log: [invalid: :info], origins: "*")
-             end) =~ ~s(Request is not a CORS request because there is no Origin header)
+      put_cors_simple_resp_headers(conn(:get, "/"), origins: "*")
+      assert_receive {[:corsica, :invalid_request], ^ref, measurements, meta}
+      assert measurements == %{}
+      assert meta.request_type == :simple
+      assert %Plug.Conn{} = meta.conn
     end
   end
 
@@ -364,54 +355,65 @@ defmodule CorsicaTest do
       assert conn == put_cors_preflight_resp_headers(conn, origins: "*", max_age: 1)
     end
 
-    test ":log option" do
-      assert capture_log([level: :info], fn ->
-               conn(:options, "/")
-               |> put_origin("http://example.com")
-               |> put_req_header("access-control-request-method", "PUT")
-               |> put_cors_preflight_resp_headers(log: [accepted: :info], origins: "*")
-             end) =~ ~s(Preflight CORS request from Origin "http://example.com" is allowed)
+    test "telemetry events" do
+      ref =
+        :telemetry_test.attach_event_handlers(self(), [
+          [:corsica, :accepted_request],
+          [:corsica, :rejected_request],
+          [:corsica, :invalid_request]
+        ])
 
-      assert capture_log([level: :info], fn ->
-               conn(:options, "/")
-               |> put_origin("http://example.com")
-               |> put_req_header("access-control-request-method", "PUT")
-               |> put_cors_preflight_resp_headers(
-                 log: [rejected: :info],
-                 allow_methods: ["GET"],
-                 origins: "*"
-               )
-             end) =~
-               ~s{Invalid preflight CORS request because the request method ("PUT") is not in :allow_methods}
+      conn(:options, "/")
+      |> put_origin("http://example.com")
+      |> put_req_header("access-control-request-method", "PUT")
+      |> put_cors_preflight_resp_headers(origins: "*")
 
-      assert capture_log([level: :info], fn ->
-               conn(:options, "/")
-               |> put_origin("http://example.com")
-               |> put_req_header("access-control-request-method", "PUT")
-               |> put_req_header("access-control-request-headers", "x-foo, x-bar")
-               |> put_cors_preflight_resp_headers(
-                 log: [rejected: :info],
-                 allow_headers: ["x-nope"],
-                 origins: "*"
-               )
-             end) =~
-               ~s{Invalid preflight CORS request because these headers were not allowed in :allow_headers: x-foo, x-bar}
+      assert_receive {[:corsica, :accepted_request], ^ref, measurements, metadata}
+      assert measurements == %{}
+      assert metadata.request_type == :preflight
+      assert %Plug.Conn{} = metadata.conn
 
-      assert capture_log([level: :info], fn ->
-               conn(:options, "/")
-               |> put_origin("http://example.com")
-               |> put_req_header("access-control-request-method", "PUT")
-               |> put_cors_preflight_resp_headers(
-                 log: [rejected: :info],
-                 origins: ["http://foo.com"]
-               )
-             end) =~
-               ~s(Preflight CORS request from Origin "http://example.com" is not allowed because its origin is not allowed)
+      conn(:options, "/")
+      |> put_origin("http://example.com")
+      |> put_req_header("access-control-request-method", "PUT")
+      |> put_cors_preflight_resp_headers(allow_methods: ["GET"], origins: "*")
 
-      assert capture_log([level: :info], fn ->
-               conn(:options, "/")
-               |> put_cors_preflight_resp_headers(origins: "*", log: [invalid: :info])
-             end) =~ ~s(Request is not a preflight CORS request)
+      assert_receive {[:corsica, :rejected_request], ^ref, measurements, metadata}
+      assert measurements == %{}
+      assert metadata.request_type == :preflight
+      assert %Plug.Conn{} = metadata.conn
+      assert metadata.reason == {:req_method_not_allowed, "PUT"}
+
+      conn(:options, "/")
+      |> put_origin("http://example.com")
+      |> put_req_header("access-control-request-method", "PUT")
+      |> put_req_header("access-control-request-headers", "x-foo, x-bar")
+      |> put_cors_preflight_resp_headers(allow_headers: ["x-nope"], origins: "*")
+
+      assert_receive {[:corsica, :rejected_request], ^ref, measurements, metadata}
+      assert measurements == %{}
+      assert metadata.request_type == :preflight
+      assert %Plug.Conn{} = metadata.conn
+      assert metadata.reason == {:req_headers_not_allowed, ["x-foo", "x-bar"]}
+
+      conn(:options, "/")
+      |> put_origin("http://example.com")
+      |> put_req_header("access-control-request-method", "PUT")
+      |> put_cors_preflight_resp_headers(origins: ["http://foo.com"])
+
+      assert_receive {[:corsica, :rejected_request], ^ref, measurements, metadata}
+      assert measurements == %{}
+      assert metadata.request_type == :preflight
+      assert %Plug.Conn{} = metadata.conn
+      assert metadata.reason == :origin_not_allowed
+
+      conn(:options, "/")
+      |> put_cors_preflight_resp_headers(origins: "*")
+
+      assert_receive {[:corsica, :invalid_request], ^ref, measurements, metadata}
+      assert measurements == %{}
+      assert metadata.request_type == :preflight
+      assert %Plug.Conn{} = metadata.conn
     end
   end
 

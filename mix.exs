@@ -44,6 +44,7 @@ defmodule Corsica.Mixfile do
   defp deps() do
     [
       {:plug, "~> 1.0"},
+      {:telemetry, "~> 0.4.0 or ~> 1.0"},
 
       # Dev and test dependencies.
       {:dialyxir, "~> 1.1.0", only: [:dev, :test], runtime: false},
