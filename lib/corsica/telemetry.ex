@@ -75,7 +75,8 @@ defmodule Corsica.Telemetry do
       options
       |> Keyword.get(:log_levels, [])
       |> Map.new()
-      |> then(&Map.merge(@default_log_levels, &1))
+
+    levels = Map.merge(@default_log_levels, levels)
 
     events = [
       [:corsica, :accepted_request],
