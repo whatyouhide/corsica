@@ -31,7 +31,7 @@ defmodule Corsica.Mixfile do
         main: "Corsica",
         source_ref: "v#{@version}",
         source_url: "https://github.com/whatyouhide/corsica",
-        extras: ["README.md", "pages/Common issues.md"],
+        extras: ["pages/Common issues.md"],
         authors: ["Andrea Leopardi"]
       ]
     ]

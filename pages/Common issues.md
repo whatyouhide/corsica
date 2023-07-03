@@ -1,4 +1,4 @@
-# Common issues
+# Common Issues
 
 This page contains a list of common issues that can be encountered when setting up CORS and Corsica. These issues are not necessarily specific to Corsica but they bubble up in the Corsica issue tracker often enough to justify talking about them in the documentation.
 

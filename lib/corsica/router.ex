@@ -19,6 +19,10 @@ defmodule Corsica.Router do
   CORS rules in a `Corsica.Router` can be defined through the `resource/2`
   macro.
 
+  > #### `use Corsica.Router` {: .info}
+  >
+  > When you `use Corsica.Router`, your module will become a `Plug.Router`.
+
   ## Examples
 
       defmodule MyApp.CORS do

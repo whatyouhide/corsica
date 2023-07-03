@@ -1,6 +1,6 @@
 defmodule Corsica do
   @moduledoc """
-  Plug-based swiss-army knife for CORS requests.
+  [Plug](https://github.com/elixir-plug/plug)-based swiss-army knife for CORS requests.
 
   Corsica provides facilities for dealing with
   [CORS](http://en.wikipedia.org/wiki/Cross-origin_resource_sharing) requests
@@ -8,25 +8,26 @@ defmodule Corsica do
 
     * low-level functions that let you decide when and where to deal with CORS
       requests and CORS response headers;
-    * a plug that handles CORS requests and responds to preflight requests;
-    * a router that can be used in your modules in order to turn them into CORS
+    * a **plug** that handles CORS requests and responds to preflight requests;
+    * a **router** that can be used in your modules in order to turn them into CORS
       handlers which provide fine control over dealing with CORS requests.
 
-  ## How it works
+  ## How It Works
 
   Corsica is compliant with the [W3C CORS
   specification](http://www.w3.org/TR/cors/). As per this specification, Corsica
-  doesn't put any CORS response headers in a connection that holds an invalid
+  **doesn't put any CORS response headers** in a connection that holds an invalid
   CORS request. To know what "invalid" CORS request means, have a look at the
-  "Validity of CORS requests" section below.
+  [*Validity of CORS Requests* section](#module-validity-of-cors-requests) below.
 
-  When some options that are not mandatory and have no default value (such
-  `:max_age`) are not passed to Corsica (in one of the available ways to pass
-  options to it), the relative header will often not be sent at all. This is
-  compliant with the specification and at the same time it reduces the size of
-  the response, even if just by a handful of bytes.
+  > #### Headers or No Headers? {: .warning}
+  >
+  > When some options that are not mandatory and have no default value (such as
+  > `:max_age`) are not passed to Corsica, the relative header will often **not be sent**
+  > at all. This is compliant with the specification, and at the same time it reduces the size of
+  > the response, even if just by a handful of bytes.
 
-  The following is a list of all the CORS response headers supported by Corsica:
+  The following is a list of all the *CORS response headers* supported by Corsica:
 
     * `Access-Control-Allow-Origin`
     * `Access-Control-Allow-Methods`
@@ -35,18 +36,127 @@ defmodule Corsica do
     * `Access-Control-Allow-Private-Network`
     * `Access-Control-Expose-Headers`
     * `Access-Control-Max-Age`
+    * `Vary` (see [the relevant section](#module-the-vary-header) below)
 
-  ## Using Corsica as a plug
+  ## Options
 
-  When `Corsica` is used as a plug, it intercepts all requests; it only sets a
+  Corsica supports the following options, in the `use` macro, in
+  `Corsica.Router.resource/2`, and in the `Corsica` plug.
+
+    * `:origins` (`t:origin/0`, list of `t:origin/0`, or the string `"*"`) This option is **required**. The origin of
+      a request (specified by the `"origin"` request header) will be considered a valid origin
+      if it "matches" at least one of the origins specified in `:origins`. What
+      "matches" means depends on the type of origin. See `t:origin/0` for more information.
+
+      The value `"*"` can also be used to match every origin and reply with `*` as
+      the value of the `access-control-allow-origin` header. If `"*"` is used, it
+      must be used as the only value of `:origins` (that is, it can't be used inside
+      a list of accepted origins). For example:
+
+          # Matches everything.
+          plug Corsica, origins: "*"
+
+          # Matches one of the given origins
+          plug Corsica, origins: ["http://foo.com", "http://bar.com"]
+
+          # Matches the given regex
+          plug Corsica, origins: ~r{^https?://(.*\.?)foo\.com$}
+
+      > #### The Origin Showed to Clients {: .info}
+      >
+      > This option directly influences the value of the
+      > `access-control-allow-origin` response header. When `:origins` is `"*"`, the
+      > `access-control-allow-origin` header is set to `*` as well. If the request's
+      > origin is allowed and `:origins` is something different than `"*"`, then you
+      > won't see that value as the value of the `access-control-allow-origin` header:
+      > the value of this header will be the request's origin (which is *mirrored*).
+      > This behaviour is intentional: it's compliant with the W3C CORS specification
+      > and at the same time it provides the advantage of "hiding" all the allowed
+      > origins from the client (which only sees its origin as an allowed origin).
+
+    * `:allow_methods` (list of `t:String.t/0`, or `:all`) -
+      This is the list
+      of methods allowed in the `access-control-request-method` header of preflight
+      requests. If the method requested by the preflight request is in this list or is
+      a *simple method* (`HEAD`, `GET`, or `POST`), then that method is always allowed.
+      The methods specified by this option are returned in the `access-control-allow-methods`
+      response header. If the value of this option is `:all`, all
+      request methods are allowed and only the method in `access-control-request-method` is
+      returned as the value of the `access-control-allow-methods` header. Defaults to `["PUT", "PATCH", "DELETE"]` (which means these methods
+      are allowed *alongside simple methods*).
+
+    * `:allow_headers` (list of `t:String.t/0`, or `:all`) - This is the list
+      of headers allowed in the `access-control-request-headers` header of preflight
+      requests. If a header requested by the preflight request is in this list or is a
+      *simple header*, then that
+      header is always allowed. These are the simple headers defined in the spec:
+        * `Accept`
+        * `Accept-Language`
+        * `Content-Language`
+
+      The headers specified by this option are returned in the
+      `access-control-allow-headers` response header. If the value of this option is `:all`, all request
+      headers are allowed and only the headers in `access-control-request-headers` are
+      returned as the value of the `access-control-allow-headers` header. Defaults to `[]` (which means only
+      the simple headers are allowed)
+
+    * `:allow_credentials` (`t:boolean/0`) - If `true`, sends the
+      `access-control-allow-credentials` with value `true`. If `false`, prevents
+      that header from being sent at all. Defaults to `false`.
+
+      > #### `Access-Control-Allow-Origin` Header with Credentials {: .info}
+      >
+      > If `:origins` is set to `"*"` and
+      > `:allow_credentials` is set to `true`, then the value of the
+      > `access-control-allow-origin` header will always be the value of the
+      > `origin` request header (as per the W3C CORS specification) and not `*`.
+
+    * `:allow_private_network` (`t:boolean/0`0 - If `true`, sets the value of the
+      `access-control-allow-private-network` header used with preflight requests, which
+      indicates that a resource can be safely shared with external networks. If `false`,
+      the `access-control-allow-private-network` is not sent at all. Defaults to `false`.
+
+    * `:expose_headers` (list of `t:String.t/0`) Sets the value of
+      the `access-control-expose-headers` response header. This option *does
+      not* have a default value; if it's not provided, the
+      `access-control-expose-headers` header is not sent at all.
+
+    * `:max_age` (`t:String.t/0` or `t:non_neg_integer/0`) Sets the value of the
+      `access-control-max-age` header used with preflight requests. This option
+      *does not* have a default value; if it's not provided, the
+      `access-control-max-age` header is not sent at all.
+
+    * `:telemetry_metadata` (`t:map/0`) - *extra* telemetry metadata to be included in all emitted
+      events. This can be useful for identifying which `plug Corsica` call is emitting
+      the events. See `Corsica.Telemetry` for more information on Telemetry in Corsica.
+      Available since v2.0.0.
+
+  To recap which headers are sent based on options, here's a handy table:
+
+  | Header                                 | Request Type      | Presence in the Response       |
+  |----------------------------------------|-------------------|--------------------------------|
+  | `access-control-allow-origin`          | simple, preflight | always                         |
+  | `access-control-allow-headers`         | preflight         | always                         |
+  | `access-control-allow-credentials`     | preflight         | `allow_credentials: true`      |
+  | `access-control-allow-private-network` | preflight         | `allow_private_network: true`  |
+  | `access-control-expose-headers`        | preflight         | `:expose_headers` is not empty |
+  | `access-control-max-age`               | preflight         | `:max_age` is present          |
+
+  ## Usage
+
+  You can use Corsica as a plug or as a router.
+
+  ### Using Corsica as a Plug
+
+  When `Corsica` is used as a plug, it intercepts **all requests**. It only sets a
   bunch of CORS headers for regular CORS requests, but it responds (with a `200 OK`
   and the appropriate headers) to preflight requests.
 
   If you want to use `Corsica` as a plug, be sure to plug it in your plug
   pipeline **before** any router-like plug: routers like `Plug.Router` (or
-  `Phoenix.Router`) respond to HTTP verbs as well as request urls, so if
+  `Phoenix.Router`) respond to HTTP verbs as well as request URLs, so if
   `Corsica` is plugged after a router then preflight requests (which are
-  `OPTIONS` requests) will often result in 404 errors since no route responds to
+  `OPTIONS` requests), that will often result in 404 errors since no route responds to
   them. Router-like plugs also include plugs like `Plug.Static`, which
   respond to requests and halt the pipeline.
 
@@ -57,121 +167,20 @@ defmodule Corsica do
         plug MyApp.Router
       end
 
-  ## Using Corsica as a router generator
+  ### Using Corsica as a Router Generator
 
   When `Corsica` is used as a plug, it doesn't provide control over which urls
   are CORS-enabled or with which options. In order to do that, you can use
   `Corsica.Router`. See the documentation for `Corsica.Router` for more
   information.
 
-  ## Origins
-
-  Allowed origins must be specified by passing the `:origins` options either when
-  using a Corsica-based router or when plugging `Corsica` in a plug pipeline. If
-  `:origins` is not provided, an error will be raised.
-
-  `:origins` can be a single value or a list of values. The origin of a request
-  (specified by the `"origin"` request header) will be considered a valid origin
-  if it "matches" at least one of the origins specified in `:origins`. What
-  "matches" means depends on the type of origin. Origins can be:
-
-    * strings - the actual origin and the allowed origin have to be identical
-    * regexes - the actual origin has to match the allowed regex (as per
-      `Regex.match?/2`)
-    * `{module, function, args}` tuples - `module.function` is called with
-      two extra arguments prepended to the given `args`: the current connection
-      and the actual origin; if it returns `true` the origin is accepted,
-      if it returns `false` the origin is not accepted
-
-  The value `"*"` can also be used to match every origin and reply with `*` as
-  the value of the `access-control-allow-origin` header. If `"*"` is used, it
-  must be used as the only value of `:origins` (that is, it can't be used inside
-  a list of accepted origins).
-
-  For example:
-
-      # Matches everything.
-      plug Corsica, origins: "*"
-
-      # Matches one of the given origins
-      plug Corsica, origins: ["http://foo.com", "http://bar.com"]
-
-      # Matches the given regex
-      plug Corsica, origins: ~r{^https?://(.*\.?)foo\.com$}
-
-  ### The value of the "access-control-allow-origin" header
-
-  The `:origins` option directly influences the value of the
-  `access-control-allow-origin` response header. When `:origins` is `"*"`, the
-  `access-control-allow-origin` header is set to `*` as well. If the request's
-  origin is allowed and `:origins` is something different than `"*"`, then you
-  won't see that value as the value of the `access-control-allow-origin` header:
-  the value of this header will be the request's origin (which is *mirrored*).
-  This behaviour is intentional: it's compliant with the W3C CORS specification
-  and at the same time it provides the advantage of "hiding" all the allowed
-  origins from the client (which only sees its origin as an allowed origin).
-
-  ## The "vary" header
+  ## The `vary` Header
 
   When Corsica is configured such that the `access-control-allow-origin` response
-  header will vary depending on the `origin` request header then a `vary: origin`
+  header will vary depending on the `origin` request header, then a `vary: origin`
   response header will be set.
 
-  ## Options
-
-  Besides `:origins`, the options that can be passed to the `use` macro, to
-  `Corsica.Router.resource/2` and to the `Corsica` plug (along with their default
-  values) are:
-
-    * `:allow_methods` - a list of HTTP methods (as binaries) or `:all`. This is the list
-      of methods allowed in the `access-control-request-method` header of preflight
-      requests. If the method requested by the preflight request is in this list or is
-      a *simple method* (`HEAD`, `GET`, or `POST`), then that method is always allowed.
-      The methods specified by this option are returned in the `access-control-allow-methods`
-      response header. Defaults to `["PUT", "PATCH", "DELETE"]` (which means these methods
-      are allowed alongside simple methods). If the value of this option is `:all`, all
-      request methods are allowed and only the method in `access-control-request-method` is
-      returned as the value of the `access-control-allow-methods` header.
-
-    * `:allow_headers` - a list of headers (as binaries) or `:all`. This is the list
-      of headers allowed in the `access-control-request-headers` header of preflight
-      requests. If a header requested by the preflight request is in this list or is a
-      *simple header* (`Accept`, `Accept-Language`, or `Content-Language`), then that
-      header is always allowed. The headers specified by this option are returned in the
-      `access-control-allow-headers` response header. Defaults to `[]` (which means only
-      the simple headers are allowed). If the value of this option is `:all`, all request
-      headers are allowed and only the headers in `access-control-request-headers` are
-      returned as the value of the `access-control-allow-headers` header.
-
-    * `:allow_credentials` - a boolean. If `true`, sends the
-      `access-control-allow-credentials` with value `true`. If `false`, prevents
-      that header from being sent at all. If `:origins` is set to `"*"` and
-      `:allow_credentials` is set to `true`, then the value of the
-      `access-control-allow-origin` header will always be the value of the
-      `origin` request header (as per the W3C CORS specification) and not `*`.
-      Defaults to `false`.
-
-    * `:allow_private_network` - a boolean. If `true`, sets the value of the
-      `access-control-allow-private-network` header used with preflight requests, which
-      indicates that a resource can be safely shared with external networks. If `false`,
-      the `access-control-allow-private-network` is not sent at all. Defaults to `false`.
-
-    * `:expose_headers` - a list of headers (as binaries). Sets the value of
-      the `access-control-expose-headers` response header. This option *does
-      not* have a default value; if it's not provided, the
-      `access-control-expose-headers` header is not sent at all.
-
-    * `:max_age` - an integer or a binary. Sets the value of the
-      `access-control-max-age` header used with preflight requests. This option
-      *does not* have a default value; if it's not provided, the
-      `access-control-max-age` header is not sent at all.
-
-    * `:telemetry_metadata` - *extra* telemetry metadata to be included in all emitted
-      events. This can be useful for identifying which `plug Corsica` call is emitting
-      the events. See `Corsica.Telemetry` for more information on Telemetry in Corsica.
-      Available since v2.0.0.
-
-  ## Responding to preflight requests
+  ## Responding to Preflight Requests
 
   When the request is a preflight request and a valid one (valid origin, valid
   request method, and valid request headers), Corsica directly sends a response
@@ -179,7 +188,7 @@ defmodule Corsica do
   possible plug pipeline can continue). To do this, Corsica **halts the
   connection** (through `Plug.Conn.halt/1`) and **sends a response**.
 
-  ## Validity of CORS requests
+  ## Validity of CORS Requests
 
   "Invalid CORS request" can mean that a request doesn't have an `Origin` header
   (so it's not a CORS request at all) or that it's a CORS request but:
@@ -243,6 +252,24 @@ defmodule Corsica do
   alias Plug.Conn
 
   @behaviour Plug
+
+  @typedoc """
+  An origin that can be specified in the `:origins` option.
+
+  This is how each type of origin is used in order to check for "matching" origins:
+
+    * strings - the actual origin and the allowed origin have to be identical
+
+    * regexes - the actual origin has to match the allowed regex (as per `Regex.match?/2`)
+
+    * `{module, function, args}` tuples - `module.function` is called with
+      two extra arguments prepended to the given `args`: the current connection
+      and the actual origin; if it returns `true` the origin is accepted,
+      if it returns `false` the origin is not accepted.
+
+  """
+  @typedoc since: "2.0.0"
+  @type origin() :: String.t() | Regex.t() | {module(), function :: atom(), args :: [term()]}
 
   @simple_methods ~w(GET HEAD POST)
   @simple_headers ~w(accept accept-language content-language)
@@ -379,8 +406,7 @@ defmodule Corsica do
   ## Options
 
   This function accepts the same options accepted by the `Corsica` plug
-  (described in the documentation for the `Corsica` module), including `:log`
-  for logging.
+  (described in the documentation for the `Corsica` module).
 
   ## Examples
 
@@ -435,8 +461,7 @@ defmodule Corsica do
   ## Options
 
   This function accepts the same options accepted by the `Corsica` plug
-  (described in the documentation for the `Corsica` module), including `:log`
-  for logging.
+  (described in the documentation for the `Corsica` module).
 
   ## Examples
 
@@ -497,8 +522,7 @@ defmodule Corsica do
   ## Options
 
   This function accepts the same options accepted by the `Corsica` plug
-  (described in the documentation for the `Corsica` module), including `:log`
-  for logging.
+  (described in the documentation for the `Corsica` module).
 
   ## Examples
 
@@ -531,7 +555,7 @@ defmodule Corsica do
         conn
 
       not allowed_preflight?(conn, opts) ->
-        # More detailed info is logged from allowed_preflight?/2.
+        # More detailed info is emitted from allowed_preflight?/2.
         conn
 
       true ->
