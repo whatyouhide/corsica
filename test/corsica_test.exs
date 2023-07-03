@@ -20,8 +20,7 @@ defmodule CorsicaTest do
     end
 
     test ":origins is required" do
-      assert capture_io(:stderr, fn -> sanitize_opts([]) end) =~
-               "the :origins option should be specified"
+      assert_raise ArgumentError, "the :origins option is required", fn -> sanitize_opts([]) end
     end
 
     test "value of :origins" do
