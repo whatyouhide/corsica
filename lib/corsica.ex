@@ -253,6 +253,21 @@ defmodule Corsica do
 
   @behaviour Plug
 
+  defmodule Options do
+    @moduledoc false
+
+    defstruct [
+      :max_age,
+      :expose_headers,
+      :origins,
+      allow_methods: ~w(PUT PATCH DELETE),
+      allow_headers: [],
+      allow_credentials: false,
+      allow_private_network: false,
+      telemetry_metadata: %{}
+    ]
+  end
+
   @typedoc """
   An origin that can be specified in the `:origins` option.
 
@@ -271,23 +286,20 @@ defmodule Corsica do
   @typedoc since: "2.0.0"
   @type origin() :: String.t() | Regex.t() | {module(), function :: atom(), args :: [term()]}
 
+  @typedoc """
+  Sanitized options, internal to Corsica.
+  """
+  @typedoc since: "2.1.0"
+  @opaque sanitized_options() :: %Options{}
+
+  @typedoc """
+  Options accepted by most functions as well as the `Corsica` plug.
+  """
+  @typedoc since: "2.1.0"
+  @type options() :: keyword() | sanitized_options()
+
   @simple_methods ~w(GET HEAD POST)
   @simple_headers ~w(accept accept-language content-language)
-
-  defmodule Options do
-    @moduledoc false
-
-    defstruct [
-      :max_age,
-      :expose_headers,
-      :origins,
-      allow_methods: ~w(PUT PATCH DELETE),
-      allow_headers: [],
-      allow_credentials: false,
-      allow_private_network: false,
-      telemetry_metadata: %{}
-    ]
-  end
 
   # Plug callbacks.
 
@@ -355,7 +367,7 @@ defmodule Corsica do
 
   # Utilities
 
-  @doc """
+  @doc \"""
   Checks whether a given connection holds a CORS request.
 
   This function doesn't check if the CORS request is a *valid* CORS request: it
@@ -425,6 +437,7 @@ defmodule Corsica do
       end
 
   """
+  @spec send_preflight_resp(Conn.t(), 100..599, binary(), options()) :: Conn.t()
   def send_preflight_resp(conn, status \\ 200, body \\ "", opts)
 
   def send_preflight_resp(%Conn{} = conn, status, body, opts) when is_list(opts) do
@@ -470,6 +483,7 @@ defmodule Corsica do
       |> send_resp(200, "Hello!")
 
   """
+  @spec put_cors_simple_resp_headers(Conn.t(), options()) :: Conn.t()
   def put_cors_simple_resp_headers(conn, opts)
 
   def put_cors_simple_resp_headers(%Conn{} = conn, opts) when is_list(opts) do
@@ -534,6 +548,7 @@ defmodule Corsica do
       ]
 
   """
+  @spec put_cors_preflight_resp_headers(Conn.t(), options()) :: Conn.t()
   def put_cors_preflight_resp_headers(conn, opts)
 
   def put_cors_preflight_resp_headers(%Conn{} = conn, opts) when is_list(opts) do

@@ -47,7 +47,7 @@ defmodule Corsica.Mixfile do
       {:telemetry, "~> 0.4.0 or ~> 1.0"},
 
       # Dev and test dependencies.
-      {:dialyxir, "~> 1.1.0", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.3.0", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.14", only: :test},
       {:ex_doc, "~> 0.15", only: :dev},
       # TODO: remove this explicitly once ssl_verify_fun fixes its OTP 26 support,
