@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.1.0
+
+### Improvements
+
+  * Add the `:passthrough_non_cors_requests` option.
+
 ## v2.0.0
 
 ### Breaking changes
