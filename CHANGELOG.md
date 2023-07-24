@@ -5,6 +5,7 @@
 ### Improvements
 
   * Add the `:passthrough_non_cors_requests` option.
+  * Add the `Corsica.sanitized_options/0` and `Corsica.options/0` types.
 
 ## v2.0.0
 
