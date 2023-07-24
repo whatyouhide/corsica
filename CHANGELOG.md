@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.1.1
+
+### Bug fixes
+
+  * Fix a small issue with preflight requests and the `:passthrough_non_cors_requests` option.
+
 ## v2.1.0
 
 ### Improvements
