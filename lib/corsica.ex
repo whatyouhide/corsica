@@ -319,10 +319,20 @@ defmodule Corsica do
   @impl Plug
   def call(%Conn{} = conn, %Options{} = opts) do
     cond do
-      opts.passthrough_non_cors_requests -> put_cors_preflight_resp_headers_no_check(conn, opts)
-      not cors_req?(conn) -> conn
-      not preflight_req?(conn) -> put_cors_simple_resp_headers(conn, opts)
-      true -> send_preflight_resp(conn, opts)
+      opts.passthrough_non_cors_requests and conn.method == "OPTIONS" ->
+        send_preflight_resp(conn, opts)
+
+      opts.passthrough_non_cors_requests ->
+        put_cors_simple_resp_headers(conn, opts)
+
+      not cors_req?(conn) ->
+        conn
+
+      not preflight_req?(conn) ->
+        put_cors_simple_resp_headers(conn, opts)
+
+      true ->
+        send_preflight_resp(conn, opts)
     end
   end
 

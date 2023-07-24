@@ -542,7 +542,7 @@ defmodule CorsicaTest do
       assert get_resp_header(conn, "access-control-allow-methods") == []
     end
 
-    test "with :passthrough_non_cors_requests set to true" do
+    test "with :passthrough_non_cors_requests set to true and a simple request" do
       conn =
         conn(:get, "/")
         |> Plug.run([
@@ -556,6 +556,23 @@ defmodule CorsicaTest do
       assert conn.state == :sent
       assert conn.status == 200
       assert conn.resp_body == "matched"
+      assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+    end
+
+    test "with :passthrough_non_cors_requests set to true and a preflight request" do
+      conn =
+        conn(:options, "/")
+        |> Plug.run([
+          {Corsica, origins: "*", passthrough_non_cors_requests: true, allow_headers: ~w(X-Foo)},
+          &send_resp(&1, 200, "matched")
+        ])
+
+      # The whole point is that this is not even a valid CORS request.
+      assert get_req_header(conn, "origin") == []
+
+      assert conn.state == :sent
+      assert conn.status == 200
+      assert conn.resp_body == ""
       assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
       assert get_resp_header(conn, "access-control-allow-methods") == ["PUT,PATCH,DELETE"]
       assert get_resp_header(conn, "access-control-allow-headers") == ["x-foo"]
