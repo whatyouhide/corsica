@@ -51,6 +51,18 @@ defmodule CorsicaTest do
       assert sanitize_opts(origins: "*", allow_credentials: true).allow_credentials == true
       assert sanitize_opts(origins: "*").allow_credentials == false
     end
+
+    test ":passthrough_non_cors_requests" do
+      assert sanitize_opts(origins: "*", passthrough_non_cors_requests: true).passthrough_non_cors_requests ==
+               true
+
+      assert sanitize_opts(origins: "*").passthrough_non_cors_requests == false
+
+      assert capture_io(:stderr, fn ->
+               sanitize_opts(origins: ["http://example.com"], passthrough_non_cors_requests: true)
+             end) =~
+               "if the :passthrough_non_cors_requests option is set to true"
+    end
   end
 
   describe "allowed_origin?/2" do
@@ -264,6 +276,19 @@ defmodule CorsicaTest do
       assert meta.request_type == :simple
       assert %Plug.Conn{} = meta.conn
     end
+
+    test "does nothing to non-CORS requests" do
+      conn = conn(:get, "/")
+      assert conn == put_cors_simple_resp_headers(conn, origins: "*")
+    end
+
+    test "puts headers to non-CORS requests if :passthrough_non_cors_requests is true" do
+      conn =
+        conn(:options, "/")
+        |> put_cors_simple_resp_headers(origins: "*", passthrough_non_cors_requests: true)
+
+      assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+    end
   end
 
   describe "put_cors_preflight_resp_headers/2" do
@@ -353,6 +378,19 @@ defmodule CorsicaTest do
     test "does nothing to non-CORS requests" do
       conn = conn(:options, "/")
       assert conn == put_cors_preflight_resp_headers(conn, origins: "*", max_age: 1)
+    end
+
+    test "puts headers to non-CORS requests if :passthrough_non_cors_requests is true" do
+      conn =
+        conn(:options, "/")
+        |> put_cors_preflight_resp_headers(
+          origins: "*",
+          max_age: 1,
+          passthrough_non_cors_requests: true
+        )
+
+      assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+      assert get_resp_header(conn, "access-control-max-age") == ["1"]
     end
 
     test "telemetry events" do
@@ -502,6 +540,25 @@ defmodule CorsicaTest do
       assert conn.resp_body == ""
       assert get_resp_header(conn, "access-control-allow-origin") == []
       assert get_resp_header(conn, "access-control-allow-methods") == []
+    end
+
+    test "with :passthrough_non_cors_requests set to true" do
+      conn =
+        conn(:get, "/")
+        |> Plug.run([
+          {Corsica, origins: "*", passthrough_non_cors_requests: true, allow_headers: ~w(X-Foo)},
+          &send_resp(&1, 200, "matched")
+        ])
+
+      # The whole point is that this is not even a valid CORS request.
+      assert get_req_header(conn, "origin") == []
+
+      assert conn.state == :sent
+      assert conn.status == 200
+      assert conn.resp_body == "matched"
+      assert get_resp_header(conn, "access-control-allow-origin") == ["*"]
+      assert get_resp_header(conn, "access-control-allow-methods") == ["PUT,PATCH,DELETE"]
+      assert get_resp_header(conn, "access-control-allow-headers") == ["x-foo"]
     end
   end
 

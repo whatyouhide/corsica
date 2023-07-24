@@ -131,6 +131,13 @@ defmodule Corsica do
       the events. See `Corsica.Telemetry` for more information on Telemetry in Corsica.
       Available since v2.0.0.
 
+    * `:passthrough_non_cors_requests` (`t:boolean/0`) - If `true`, allows
+      non-CORS requests to pass through the plug. See `cors_req?/1` and
+      `preflight_req?/1` to understand what constitutes a CORS request. What we
+      mean by "allowing non-CORS requests" means that Corsica won't verify the
+      `Origin` header and such, but will still add CORS headers to the response.
+      Defaults to `false`. Available since v2.1.0.
+
   To recap which headers are sent based on options, here's a handy table:
 
   | Header                                 | Request Type      | Presence in the Response       |
@@ -264,6 +271,7 @@ defmodule Corsica do
       allow_headers: [],
       allow_credentials: false,
       allow_private_network: false,
+      passthrough_non_cors_requests: false,
       telemetry_metadata: %{}
     ]
   end
@@ -311,6 +319,7 @@ defmodule Corsica do
   @impl Plug
   def call(%Conn{} = conn, %Options{} = opts) do
     cond do
+      opts.passthrough_non_cors_requests -> put_cors_preflight_resp_headers_no_check(conn, opts)
       not cors_req?(conn) -> conn
       not preflight_req?(conn) -> put_cors_simple_resp_headers(conn, opts)
       true -> send_preflight_resp(conn, opts)
@@ -334,6 +343,7 @@ defmodule Corsica do
     |> maybe_update_option(:max_age, &to_string/1)
     |> maybe_update_option(:expose_headers, &Enum.join(&1, ","))
     |> maybe_warn_tuple_origins()
+    |> maybe_warn_passthrough_non_cors_requests_option()
   end
 
   defp to_options_struct(opts), do: struct(Options, opts)
@@ -365,9 +375,20 @@ defmodule Corsica do
     opts
   end
 
+  defp maybe_warn_passthrough_non_cors_requests_option(opts) do
+    if opts.passthrough_non_cors_requests and opts.origins != "*" do
+      IO.warn(
+        "if the :passthrough_non_cors_requests option is set to true, " <>
+          "then you need to set the :origins option to \"*\""
+      )
+    end
+
+    opts
+  end
+
   # Utilities
 
-  @doc \"""
+  @doc """
   Checks whether a given connection holds a CORS request.
 
   This function doesn't check if the CORS request is a *valid* CORS request: it
@@ -492,6 +513,13 @@ defmodule Corsica do
 
   def put_cors_simple_resp_headers(%Conn{} = conn, %Options{} = opts) do
     cond do
+      opts.passthrough_non_cors_requests ->
+        execute_telemetry(conn, opts, [:accepted_request], %{request_type: :simple})
+
+        conn
+        |> put_common_headers(opts)
+        |> put_expose_headers_header(opts)
+
       not cors_req?(conn) ->
         execute_telemetry(conn, opts, [:invalid_request], %{request_type: :simple})
         conn
@@ -557,6 +585,10 @@ defmodule Corsica do
 
   def put_cors_preflight_resp_headers(%Conn{} = conn, %Options{} = opts) do
     cond do
+      opts.passthrough_non_cors_requests ->
+        execute_telemetry(conn, opts, [:accepted_request], %{request_type: :preflight})
+        put_cors_preflight_resp_headers_no_check(conn, opts)
+
       not preflight_req?(conn) ->
         execute_telemetry(conn, opts, [:invalid_request], %{request_type: :preflight})
         conn
@@ -575,14 +607,17 @@ defmodule Corsica do
 
       true ->
         execute_telemetry(conn, opts, [:accepted_request], %{request_type: :preflight})
-
-        conn
-        |> put_common_headers(opts)
-        |> put_allow_methods_header(opts)
-        |> put_allow_headers_header(opts)
-        |> put_allow_private_network_header(opts)
-        |> put_max_age_header(opts)
+        put_cors_preflight_resp_headers_no_check(conn, opts)
     end
+  end
+
+  defp put_cors_preflight_resp_headers_no_check(conn, opts) do
+    conn
+    |> put_common_headers(opts)
+    |> put_allow_methods_header(opts)
+    |> put_allow_headers_header(opts)
+    |> put_allow_private_network_header(opts)
+    |> put_max_age_header(opts)
   end
 
   defp put_common_headers(conn, %Options{} = opts) do
@@ -598,6 +633,10 @@ defmodule Corsica do
     else
       conn
     end
+  end
+
+  defp put_allow_origin_header(conn, %Options{passthrough_non_cors_requests: true, origins: "*"}) do
+    put_resp_header(conn, "access-control-allow-origin", "*")
   end
 
   defp put_allow_origin_header(conn, %Options{} = opts) do
