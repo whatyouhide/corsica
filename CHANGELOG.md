@@ -1,10 +1,15 @@
 # Changelog
 
+## v2.1.2
+
+  * Fix a bug with typespecs and Dialyzer.
+
 ## v2.1.1
 
 ### Bug fixes
 
   * Fix a small issue with preflight requests and the `:passthrough_non_cors_requests` option.
+  * Add the `Corsica.options/0` type.
 
 ## v2.1.0
 
