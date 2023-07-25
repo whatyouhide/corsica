@@ -295,16 +295,12 @@ defmodule Corsica do
   @type origin() :: String.t() | Regex.t() | {module(), function :: atom(), args :: [term()]}
 
   @typedoc """
-  Sanitized options, internal to Corsica.
-  """
-  @typedoc since: "2.1.0"
-  @opaque sanitized_options() :: %Options{}
-
-  @typedoc """
   Options accepted by most functions as well as the `Corsica` plug.
+
+  The `%Options{}` struct is internal to Corsica and is used for performance.
   """
   @typedoc since: "2.1.0"
-  @type options() :: keyword() | sanitized_options()
+  @type options() :: keyword() | %Options{}
 
   @simple_methods ~w(GET HEAD POST)
   @simple_headers ~w(accept accept-language content-language)
