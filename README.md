@@ -31,7 +31,7 @@ Add the `:corsica` dependency to your project's `mix.exs`:
 defp deps do
   [
     {:plug, "~> 1.0"},
-    {:corsica, "~> 1.0"}
+    {:corsica, "~> 2.0"}
   ]
 end
 ```
