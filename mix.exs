@@ -48,7 +48,7 @@ defmodule Corsica.Mixfile do
 
       # Dev and test dependencies.
       {:dialyxir, "~> 1.3.0", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.14", only: :test},
+      {:excoveralls, "~> 0.17", only: :test},
       {:ex_doc, "~> 0.15", only: :dev},
       # TODO: remove this explicitly once ssl_verify_fun fixes its OTP 26 support,
       # or excoveralls stops depending on hackney.
