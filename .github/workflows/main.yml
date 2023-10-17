@@ -8,14 +8,14 @@ on:
 
 jobs:
   test:
-    name: Test (Elixir ${{matrix.elixir}} | Erlang/OTP ${{matrix.otp}})
-    runs-on: ubuntu-20.04
+    name: Test (Elixir ${{ matrix.elixir }} | Erlang/OTP ${{ matrix.otp }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - otp: "26.0.2"
-            elixir: "1.15.4"
+          - otp: "26.1"
+            elixir: "1.15"
             coverage: true
             lint: true
             dialyzer: true
@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Clone this repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Erlang/OTP and Elixir
         uses: erlef/setup-beam@v1
@@ -58,15 +58,15 @@ jobs:
       # Don't cache PLTs based on mix.lock hash, as Dialyzer can incrementally update even old ones.
       # Cache key based on Elixir & Erlang version (also useful when running in matrix).
       - name: Cache Dialyzer's PLT
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: cache-plt
         with:
-          path: priv/plts
+          path: plts
           key: ${{ runner.os }}-otp${{ matrix.otp }}-elixir${{ matrix.elixir }}
 
       # Create PLTs if no cache was found
       - name: Create PLTs
-        if: steps.cache-plt.outputs.cache-hit != 'true'
+        if: steps.cache-plt.outputs.cache-hit != 'true' && matrix.dialyzer
         run: mix dialyzer --plt
 
       - name: Check formatting
@@ -82,13 +82,15 @@ jobs:
         if: ${{ matrix.lint }}
 
       - name: Run tests
-        run: mix test --trace
-        if: ${{!matrix.coverage}}
+        run: mix test
+        if: ${{ !matrix.coverage }}
 
       - name: Run tests with coverage
         run: mix coveralls.github
-        if: ${{matrix.coverage}}
+        if: ${{ matrix.coverage }}
 
       - name: Run Dialyzer
-        run: mix dialyzer --format github
-        if: ${{matrix.dialyzer}}
+        if: ${{ matrix.dialyzer }}
+        run: |
+          mkdir -p ./plts
+          mix dialyzer --format github
