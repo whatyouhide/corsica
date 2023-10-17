@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.1.3
+
+  * Remove Dialyzer PLTs from the Hex package. This has no functional impact whatsoever on the library. The PLTs were accidentally published together with the Hex package, which just results in an unnecessarily large Hex package.
+
 ## v2.1.2
 
   * Fix a bug with typespecs and Dialyzer.
