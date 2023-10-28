@@ -1,5 +1,5 @@
 defmodule Corsica do
-  @moduledoc """
+  @moduledoc ~S"""
   [Plug](https://github.com/elixir-plug/plug)-based swiss-army knife for CORS requests.
 
   Corsica provides facilities for dealing with
@@ -60,7 +60,7 @@ defmodule Corsica do
           plug Corsica, origins: ["http://foo.com", "http://bar.com"]
 
           # Matches the given regex
-          plug Corsica, origins: ~r{^https?://(.*\.?)foo\.com$}
+          plug Corsica, origins: ~r{^https?://(.*\.)?foo\.com$}
 
       > #### The Origin Showed to Clients {: .info}
       >
