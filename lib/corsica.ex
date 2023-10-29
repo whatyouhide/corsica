@@ -38,6 +38,18 @@ defmodule Corsica do
     * `Access-Control-Max-Age`
     * `Vary` (see [the relevant section](#module-the-vary-header) below)
 
+
+  > #### Simple and Preflight Requests {: .info}
+  >
+  > To understand this documentation, it's important to understand the distinction between
+  > **simple requests** and **preflight requests**. A request is considered
+  > to be a CORS preflight request if and only if its request method is `OPTIONS`
+  > and it has a `Access-Control-Request-Method` request header. Clients send preflight
+  > before non-simple requests in order to determine the CORS policy of the server.
+  > Simple requests don't need to be preceded by preflight requests. Servers can respond
+  > with CORS headers in both responses to simple requests as well as preflight requests.
+  > See also `preflight_req?/1`.
+
   ## Options
 
   Corsica supports the following options, in the `use` macro, in
@@ -138,16 +150,20 @@ defmodule Corsica do
       `Origin` header and such, but will still add CORS headers to the response.
       Defaults to `false`. Available since v2.1.0.
 
-  To recap which headers are sent based on options, here's a handy table:
+  To recap which headers are sent based on options, we've compiled a handy table below.
+  In the table below, we call *actual request* the request that the client means to make,
+  that is, a simple request *or* the request following a preflight request. These headers
+  are present in the response to the *actual request*.
 
-  | Header                                 | Request Type      | Presence in the Response       |
-  |----------------------------------------|-------------------|--------------------------------|
-  | `access-control-allow-origin`          | simple, preflight | always                         |
-  | `access-control-allow-headers`         | preflight         | always                         |
-  | `access-control-allow-credentials`     | preflight         | `allow_credentials: true`      |
-  | `access-control-allow-private-network` | preflight         | `allow_private_network: true`  |
-  | `access-control-expose-headers`        | preflight         | `:expose_headers` is not empty |
-  | `access-control-max-age`               | preflight         | `:max_age` is present          |
+  | Header Sent by Corsica                 | Request Type      | Presence in the Response          |
+  |----------------------------------------|-------------------|-----------------------------------|
+  | `access-control-allow-origin`          | preflight, actual | always                            |
+  | `access-control-allow-methods`         | preflight         | always                            |
+  | `access-control-allow-headers`         | preflight         | always                            |
+  | `access-control-allow-credentials`     | preflight, actual | If `allow_credentials: true`      |
+  | `access-control-allow-private-network` | preflight         | If `allow_private_network: true`  |
+  | `access-control-expose-headers`        | preflight         | If `:expose_headers` is not empty |
+  | `access-control-max-age`               | preflight         | If `:max_age` is present          |
 
   ## Usage
 
