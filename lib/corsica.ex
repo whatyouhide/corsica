@@ -162,7 +162,7 @@ defmodule Corsica do
   | `access-control-allow-headers`         | preflight         | always                            |
   | `access-control-allow-credentials`     | preflight, actual | If `allow_credentials: true`      |
   | `access-control-allow-private-network` | preflight         | If `allow_private_network: true`  |
-  | `access-control-expose-headers`        | preflight         | If `:expose_headers` is not empty |
+  | `access-control-expose-headers`        | actual            | If `:expose_headers` is not empty |
   | `access-control-max-age`               | preflight         | If `:max_age` is present          |
 
   ## Usage
