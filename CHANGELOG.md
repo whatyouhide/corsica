@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.2.0
+
+  * Bump Elixir requirement to 1.12+, as 1.11 does not get security updates anymore.
+  * Remove all compilation warnings on Elixir 1.17.
+
 ## v2.1.3
 
   * Remove Dialyzer PLTs from the Hex package. This has no functional impact whatsoever on the library. The PLTs were accidentally published together with the Hex package, which just results in an unnecessarily large Hex package.
